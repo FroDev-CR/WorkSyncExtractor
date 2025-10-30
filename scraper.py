@@ -74,27 +74,53 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
 
             # Paso 4: Verificar que el login fue exitoso
             if 'Login.asp' in current_url:
-                # Aún estamos en la página de login - el login falló
-                page_text = await page.content()
+                # Verificar si es un force_signon (sesión activa en otro lugar)
+                if 'force_signon=Y' in current_url or 'force%5Fsignon=Y' in current_url:
+                    log(f"⚠️ Sesión activa detectada, forzando nuevo login...")
 
-                # Buscar mensajes de error más específicos
-                if 'invalid' in page_text.lower() or 'incorrect' in page_text.lower():
-                    raise Exception("❌ Credenciales incorrectas. Verifica usuario y contraseña.")
-                elif 'locked' in page_text.lower() or 'disabled' in page_text.lower():
-                    raise Exception("❌ La cuenta puede estar bloqueada o deshabilitada.")
+                    # Buscar y hacer click en el botón para forzar el login
+                    try:
+                        # Intentar encontrar el botón de submit nuevamente
+                        force_button = await page.query_selector('input[type="submit"]')
+                        if force_button:
+                            await force_button.click()
+                            log(f"✅ Click en forzar login enviado")
+                            await page.wait_for_load_state('networkidle', timeout=60000)
+                            await page.wait_for_timeout(3000)
+
+                            current_url = page.url
+                            log(f"📍 URL después de forzar login: {current_url}")
+
+                            # Verificar si ahora sí funcionó
+                            if 'Login.asp' in current_url:
+                                raise Exception("❌ No se pudo forzar el login. Cierra otras sesiones de SupplyPro con este usuario.")
+                        else:
+                            raise Exception("❌ No se encontró el botón para forzar login.")
+                    except Exception as e:
+                        raise Exception(f"❌ Error al forzar login: {str(e)}")
+
                 else:
-                    # Log más información para debug
-                    log(f"⚠️ DEBUG: Username usado: {username}")
-                    log(f"⚠️ DEBUG: URL actual: {current_url}")
-                    # Buscar si hay algún mensaje de error en la página
-                    error_elements = await page.query_selector_all('.error, .alert, .warning, [class*="error"], [class*="alert"]')
-                    if error_elements:
-                        for elem in error_elements[:3]:
-                            text = await elem.text_content()
-                            if text and text.strip():
-                                log(f"⚠️ Mensaje en página: {text.strip()}")
+                    # No es force_signon, es un error real
+                    page_text = await page.content()
 
-                    raise Exception("❌ El login no se completó. Verifica que las credenciales de Apex sean correctas en config.py")
+                    # Buscar mensajes de error más específicos
+                    if 'invalid' in page_text.lower() or 'incorrect' in page_text.lower():
+                        raise Exception("❌ Credenciales incorrectas. Verifica usuario y contraseña.")
+                    elif 'locked' in page_text.lower() or 'disabled' in page_text.lower():
+                        raise Exception("❌ La cuenta puede estar bloqueada o deshabilitada.")
+                    else:
+                        # Log más información para debug
+                        log(f"⚠️ DEBUG: Username usado: {username}")
+                        log(f"⚠️ DEBUG: URL actual: {current_url}")
+                        # Buscar si hay algún mensaje de error en la página
+                        error_elements = await page.query_selector_all('.error, .alert, .warning, [class*="error"], [class*="alert"]')
+                        if error_elements:
+                            for elem in error_elements[:3]:
+                                text = await elem.text_content()
+                                if text and text.strip():
+                                    log(f"⚠️ Mensaje en página: {text.strip()}")
+
+                        raise Exception("❌ El login no se completó. Verifica que las credenciales sean correctas en config.py")
 
             log(f"✅ Login exitoso")
 
