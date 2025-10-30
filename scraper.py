@@ -95,28 +95,37 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             except Exception as e:
                 print(f"⚠️ Método 1 falló: {str(e)}")
 
-            # Intento 2: Por href
-            if not orden_clickeado:
-                try:
-                    link = page.locator('a[href*="orders"]').first
-                    if await link.count() > 0:
-                        print(f"✅ Link encontrado (método 2)")
-                        await link.click(timeout=10000)
-                        orden_clickeado = True
-                except Exception as e:
-                    print(f"⚠️ Método 2 falló: {str(e)}")
-
-            # Intento 3: Buscar en toda la página
+            # Intento 2: Buscar en toda la página
             if not orden_clickeado:
                 try:
                     all_links = await page.query_selector_all('a')
                     for link in all_links:
                         text = await link.text_content()
                         if text and 'Newly Received Orders' in text:
-                            print(f"✅ Link encontrado (método 3)")
+                            print(f"✅ Link encontrado (método 2)")
                             await link.click()
                             orden_clickeado = True
                             break
+                except Exception as e:
+                    print(f"⚠️ Método 2 falló: {str(e)}")
+
+            # Intento 3: Si no encontró "Newly Received Orders", hacer click en "Orders" primero
+            if not orden_clickeado:
+                try:
+                    print(f"🔍 Intentando click en 'Orders' primero...")
+                    orders_link = page.locator('a:has-text("Orders")').first
+                    if await orders_link.count() > 0:
+                        await orders_link.click(timeout=10000)
+                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        await page.wait_for_timeout(3000)
+                        print(f"✅ Click en 'Orders' exitoso")
+
+                        # Ahora buscar "Received" o "Newly Received Orders"
+                        received_link = page.locator('a:has-text("Received")').first
+                        if await received_link.count() > 0:
+                            print(f"✅ Link 'Received' encontrado")
+                            await received_link.click(timeout=10000)
+                            orden_clickeado = True
                 except Exception as e:
                     print(f"⚠️ Método 3 falló: {str(e)}")
 
