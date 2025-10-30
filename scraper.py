@@ -3,8 +3,14 @@ Módulo de extracción de órdenes de SupplyPro usando Playwright
 """
 import pandas as pd
 import asyncio
+import sys
 from playwright.async_api import async_playwright
 from config import SUPPLYPRO_URL
+
+def log(msg):
+    """Log que SÍ se ve en Streamlit Cloud"""
+    sys.stderr.write(f"{msg}\n")
+    sys.stderr.flush()
 
 
 async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
@@ -39,32 +45,32 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
 
         try:
             # Paso 1: Ir a la página de login
-            print(f"🔗 Navegando a SupplyPro...")
+            log(f"🔗 Navegando a SupplyPro...")
             await page.goto(SUPPLYPRO_URL, wait_until='networkidle', timeout=60000)
-            print(f"✅ Página cargada: {page.url}")
+            log(f"✅ Página cargada: {page.url}")
 
             # Paso 2: Esperar y llenar formulario
-            print(f"📝 Llenando formulario de login...")
+            log(f"📝 Llenando formulario de login...")
             await page.wait_for_selector('#user_name', state='visible', timeout=15000)
             await page.type('#user_name', username, delay=100)
 
             await page.wait_for_selector('#password', state='visible', timeout=15000)
             await page.type('#password', password, delay=100)
 
-            print(f"✅ Credenciales ingresadas")
+            log(f"✅ Credenciales ingresadas")
 
             # Paso 3: Submit y esperar navegación
-            print(f"🚀 Enviando login...")
+            log(f"🚀 Enviando login...")
             submit_button = await page.query_selector('input[type="submit"]')
 
             # Click y esperar navegación con más tiempo
             await submit_button.click()
-            print(f"⏳ Esperando navegación después del login...")
+            log(f"⏳ Esperando navegación después del login...")
             await page.wait_for_load_state('networkidle', timeout=60000)
             await page.wait_for_timeout(5000)  # Aumentado de 3s a 5s
 
             current_url = page.url
-            print(f"📍 URL después del login: {current_url}")
+            log(f"📍 URL después del login: {current_url}")
 
             # Paso 4: Verificar que el login fue exitoso
             if 'Login.asp' in current_url:
@@ -78,19 +84,19 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
                     raise Exception("❌ La cuenta puede estar bloqueada o deshabilitada.")
                 else:
                     # Log más información para debug
-                    print(f"⚠️ DEBUG: Username usado: {username}")
-                    print(f"⚠️ DEBUG: URL actual: {current_url}")
+                    log(f"⚠️ DEBUG: Username usado: {username}")
+                    log(f"⚠️ DEBUG: URL actual: {current_url}")
                     # Buscar si hay algún mensaje de error en la página
                     error_elements = await page.query_selector_all('.error, .alert, .warning, [class*="error"], [class*="alert"]')
                     if error_elements:
                         for elem in error_elements[:3]:
                             text = await elem.text_content()
                             if text and text.strip():
-                                print(f"⚠️ Mensaje en página: {text.strip()}")
+                                log(f"⚠️ Mensaje en página: {text.strip()}")
 
                     raise Exception("❌ El login no se completó. Verifica que las credenciales de Apex sean correctas en config.py")
 
-            print(f"✅ Login exitoso")
+            log(f"✅ Login exitoso")
 
             # Paso 5: Buscar y hacer click en "Newly Received Orders"
             print(f"🔍 Buscando link 'Newly Received Orders'...")
