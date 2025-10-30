@@ -24,16 +24,26 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
     Replica EXACTAMENTE el proceso del código original de Python
     """
     try:
+        log(f"📊 DataFrame RAW: {len(df_raw)} filas, {len(df_raw.columns)} columnas")
+        log(f"📋 Primeras 5 filas del RAW:")
+        for i in range(min(5, len(df_raw))):
+            log(f"   Fila {i}: {list(df_raw.iloc[i])[:5]}...")  # Primeras 5 columnas
+
+        log(f"📋 Fila 57 (donde deberían estar headers): {list(df_raw.iloc[57])[:10] if len(df_raw) > 57 else 'NO EXISTE'}")
+
         # Replicar el proceso original: extraer desde fila 57
         sub = df_raw.iloc[57:-4].reset_index(drop=True) if len(df_raw) > 61 else df_raw.copy()
+        log(f"📊 Después de recortar: {len(sub)} filas")
 
         # Los headers están en la primera fila
         headers = [str(x).strip().replace('\n', ' ') for x in sub.iloc[0]]
+        log(f"📋 HEADERS EXTRAÍDOS: {headers}")
+
         df = sub.iloc[1:].copy()
         df.columns = headers
         df = df.map(lambda v: str(v).strip().replace('\n', ' '))
 
-        log(f"✅ COLUMNAS ORIGINALES: {list(df.columns)}")
+        log(f"✅ COLUMNAS DESPUÉS DE ASIGNAR: {list(df.columns)}")
 
         # Renombrar columnas EXACTAMENTE como el original
         rename_map = {
