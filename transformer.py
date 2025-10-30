@@ -30,13 +30,18 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
             log(f"   Fila {i}: {list(df_raw.iloc[i])[:5]}...")  # Primeras 5 columnas
 
         # Buscar la fila que contiene "Builder Order #" (los headers reales)
+        # Debe ser un valor de celda limpio, no dentro de un texto gigante
         header_row_idx = None
         for i in range(min(100, len(df_raw))):
             row_values = [str(x) for x in df_raw.iloc[i]]
-            if 'Builder Order #' in row_values or 'Builder Order' in ' '.join(row_values):
-                header_row_idx = i
-                log(f"📋 HEADERS ENCONTRADOS EN FILA: {i}")
-                log(f"📋 Headers: {row_values[:10]}")
+            # Buscar una celda que contenga "Builder Order" y tenga longitud razonable
+            for val in row_values:
+                if 'Builder Order' in val and len(val) < 100:
+                    header_row_idx = i
+                    log(f"📋 HEADERS ENCONTRADOS EN FILA: {i}")
+                    log(f"📋 Headers: {row_values[:10]}")
+                    break
+            if header_row_idx is not None:
                 break
 
         if header_row_idx is None:
