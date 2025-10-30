@@ -19,9 +19,20 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
         DataFrame con las órdenes extraídas
     """
     async with async_playwright() as p:
-        # Lanzar navegador en modo headless
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
+        # Lanzar navegador en modo headless con opciones para cloud
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        )
+        context = await browser.new_context(
+            viewport={'width': 1920, 'height': 1080},
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        )
         page = await context.new_page()
 
         try:

@@ -4,6 +4,26 @@ SupplyPro Extractor - Versión Web con Streamlit
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+import subprocess
+import sys
+from pathlib import Path
+
+# Instalar Playwright browsers en primera ejecución
+@st.cache_resource
+def install_playwright():
+    """Instala los navegadores de Playwright si no están instalados"""
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            check=True,
+            capture_output=True
+        )
+    except Exception as e:
+        st.warning(f"Nota: {str(e)}")
+
+# Instalar Playwright al inicio
+install_playwright()
+
 from config import CREDENTIALS
 from utils.scraper import ejecutar_extraccion
 from utils.transformer import transformar_ordenes
