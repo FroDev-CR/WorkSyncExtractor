@@ -29,18 +29,26 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         for i in range(min(5, len(df_raw))):
             log(f"   Fila {i}: {list(df_raw.iloc[i])[:5]}...")  # Primeras 5 columnas
 
-        log(f"📋 Fila 57 (donde deberían estar headers): {list(df_raw.iloc[57])[:10] if len(df_raw) > 57 else 'NO EXISTE'}")
+        # Buscar la fila que contiene "Builder Order #" (los headers reales)
+        header_row_idx = None
+        for i in range(min(100, len(df_raw))):
+            row_values = [str(x) for x in df_raw.iloc[i]]
+            if 'Builder Order #' in row_values or 'Builder Order' in ' '.join(row_values):
+                header_row_idx = i
+                log(f"📋 HEADERS ENCONTRADOS EN FILA: {i}")
+                log(f"📋 Headers: {row_values[:10]}")
+                break
 
-        # Replicar el proceso original: extraer desde fila 57
-        sub = df_raw.iloc[57:-4].reset_index(drop=True) if len(df_raw) > 61 else df_raw.copy()
-        log(f"📊 Después de recortar: {len(sub)} filas")
+        if header_row_idx is None:
+            raise Exception("No se encontró la fila de headers con 'Builder Order #'")
 
-        # Los headers están en la primera fila
-        headers = [str(x).strip().replace('\n', ' ') for x in sub.iloc[0]]
-        log(f"📋 HEADERS EXTRAÍDOS: {headers}")
-
-        df = sub.iloc[1:].copy()
+        # Extraer desde la fila de headers + 1 (los datos)
+        headers = [str(x).strip().replace('\n', ' ') for x in df_raw.iloc[header_row_idx]]
+        df = df_raw.iloc[header_row_idx + 1:].reset_index(drop=True)
         df.columns = headers
+        log(f"📊 DataFrame de datos: {len(df)} filas desde fila {header_row_idx + 1}")
+
+        # Limpiar valores (quitar saltos de línea y espacios extras)
         df = df.map(lambda v: str(v).strip().replace('\n', ' '))
 
         log(f"✅ COLUMNAS DESPUÉS DE ASIGNAR: {list(df.columns)}")
