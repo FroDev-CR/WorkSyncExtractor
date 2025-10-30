@@ -159,10 +159,10 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             table_html = await table_element.inner_html()
             full_table_html = f"<table>{table_html}</table>"
 
-            # Convertir a DataFrame usando StringIO para evitar warning
+            # Convertir a DataFrame SIN interpretar headers (igual que el código original)
             from io import StringIO
-            df = pd.read_html(StringIO(full_table_html))[0]
-            print(f"✅ Extraídas {len(df)} filas")
+            df = pd.read_html(StringIO(full_table_html), header=None)[0]
+            print(f"✅ Extraídas {len(df)} filas sin headers")
 
             # Cerrar sesión
             try:
