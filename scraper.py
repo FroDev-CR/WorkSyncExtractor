@@ -57,10 +57,11 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             print(f"🚀 Enviando login...")
             submit_button = await page.query_selector('input[type="submit"]')
 
-            # Click y esperar navegación
+            # Click y esperar navegación con más tiempo
             await submit_button.click()
+            print(f"⏳ Esperando navegación después del login...")
             await page.wait_for_load_state('networkidle', timeout=60000)
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(5000)  # Aumentado de 3s a 5s
 
             current_url = page.url
             print(f"📍 URL después del login: {current_url}")
@@ -69,10 +70,25 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             if 'Login.asp' in current_url:
                 # Aún estamos en la página de login - el login falló
                 page_text = await page.content()
+
+                # Buscar mensajes de error más específicos
                 if 'invalid' in page_text.lower() or 'incorrect' in page_text.lower():
                     raise Exception("❌ Credenciales incorrectas. Verifica usuario y contraseña.")
+                elif 'locked' in page_text.lower() or 'disabled' in page_text.lower():
+                    raise Exception("❌ La cuenta puede estar bloqueada o deshabilitada.")
                 else:
-                    raise Exception("❌ El login no se completó. SupplyPro puede estar experimentando problemas.")
+                    # Log más información para debug
+                    print(f"⚠️ DEBUG: Username usado: {username}")
+                    print(f"⚠️ DEBUG: URL actual: {current_url}")
+                    # Buscar si hay algún mensaje de error en la página
+                    error_elements = await page.query_selector_all('.error, .alert, .warning, [class*="error"], [class*="alert"]')
+                    if error_elements:
+                        for elem in error_elements[:3]:
+                            text = await elem.text_content()
+                            if text and text.strip():
+                                print(f"⚠️ Mensaje en página: {text.strip()}")
+
+                    raise Exception("❌ El login no se completó. Verifica que las credenciales de Apex sean correctas en config.py")
 
             print(f"✅ Login exitoso")
 
