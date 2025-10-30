@@ -2,6 +2,7 @@
 Módulo de transformación de órdenes según reglas de negocio
 """
 import re
+import sys
 import pandas as pd
 from config import (
     SHINE_TASK_MAP,
@@ -9,6 +10,11 @@ from config import (
     SHINE_SUBDIVISION_MAP,
     APEX_INSTRUCTION_REGEX
 )
+
+def log(msg):
+    """Log que SÍ se ve en Streamlit Cloud"""
+    sys.stderr.write(f"{msg}\n")
+    sys.stderr.flush()
 
 
 def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
@@ -27,7 +33,7 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         df.columns = headers
         df = df.map(lambda v: str(v).strip().replace('\n', ' '))
 
-        print(f"✅ Columnas encontradas: {list(df.columns)}")
+        log(f"✅ COLUMNAS ORIGINALES: {list(df.columns)}")
 
         # Renombrar columnas EXACTAMENTE como el original
         rename_map = {
@@ -42,7 +48,7 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         }
 
         df.rename(columns=rename_map, inplace=True)
-        print(f"✅ Después de renombrar: {list(df.columns)}")
+        log(f"✅ DESPUÉS DE RENOMBRAR: {list(df.columns)}")
 
         # Eliminar columnas irrelevantes
         drop_cols = [c for c in df.columns if any(x in c for x in ['Supplier Order', 'Order Status', 'Builder Status'])]
@@ -57,7 +63,7 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         else:
             # Si no existe, buscar columnas con 'date' o 'request' en el nombre
             date_cols = [col for col in df.columns if 'date' in col.lower() or 'request' in col.lower() or 'acknowledged' in col.lower()]
-            print(f"⚠️ 'Start Date' no encontrada. Columnas con fecha disponibles: {date_cols}")
+            log(f"⚠️ 'Start Date' no encontrada. Columnas con fecha disponibles: {date_cols}")
 
             if date_cols:
                 # Tomar la primera columna que parezca una fecha
@@ -117,11 +123,11 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         final = df[['Client Name', 'Job title Final', 'Full Property Address', 'total', 'Start Date']]
         final = final[~final.apply(lambda row: row.astype(str).str.lower().eq('nan').any(), axis=1)]
 
-        print(f"✅ Procesamiento completado: {len(final)} órdenes")
+        log(f"✅ Procesamiento completado: {len(final)} órdenes")
         return final
 
     except Exception as e:
-        print(f"❌ Error en transformación: {str(e)}")
+        log(f"❌ Error en transformación: {str(e)}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         raise Exception(f"Error al procesar órdenes: {str(e)}")
