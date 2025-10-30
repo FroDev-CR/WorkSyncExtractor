@@ -25,12 +25,12 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         headers = [str(x).strip().replace('\n', ' ') for x in sub.iloc[0]]
         df = sub.iloc[1:].copy()
         df.columns = headers
-        df = df.applymap(lambda v: str(v).strip().replace('\n', ' '))
+        df = df.map(lambda v: str(v).strip().replace('\n', ' '))
 
         print(f"✅ Columnas encontradas: {list(df.columns)}")
 
         # Renombrar columnas EXACTAMENTE como el original
-        df.rename(columns={
+        rename_map = {
             'Builder Order #': 'Number order',
             'Account': 'Client Name',
             'Subdivision': 'Job title',
@@ -39,17 +39,35 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
             'Task Task Filter': 'instruction',
             'Total Excl Tax': 'total',
             'Request Acknowledged Actual': 'Start Date'
-        }, inplace=True)
+        }
+
+        df.rename(columns=rename_map, inplace=True)
+        print(f"✅ Después de renombrar: {list(df.columns)}")
 
         # Eliminar columnas irrelevantes
         drop_cols = [c for c in df.columns if any(x in c for x in ['Supplier Order', 'Order Status', 'Builder Status'])]
         df.drop(columns=drop_cols, inplace=True)
 
-        # Extraer solo la fecha (formato MM/DD/YYYY)
-        df['Start Date'] = df['Start Date'].apply(
-            lambda x: re.search(r"\d{1,2}/\d{1,2}/\d{4}", x).group(0)
-            if re.search(r"\d{1,2}/\d{1,2}/\d{4}", x) else ''
-        )
+        # Extraer solo la fecha (formato MM/DD/YYYY) - solo si existe la columna
+        if 'Start Date' in df.columns:
+            df['Start Date'] = df['Start Date'].apply(
+                lambda x: re.search(r"\d{1,2}/\d{1,2}/\d{4}", x).group(0)
+                if re.search(r"\d{1,2}/\d{1,2}/\d{4}", x) else ''
+            )
+        else:
+            # Si no existe, buscar columnas con 'date' o 'request' en el nombre
+            date_cols = [col for col in df.columns if 'date' in col.lower() or 'request' in col.lower() or 'acknowledged' in col.lower()]
+            print(f"⚠️ 'Start Date' no encontrada. Columnas con fecha disponibles: {date_cols}")
+
+            if date_cols:
+                # Tomar la primera columna que parezca una fecha
+                df['Start Date'] = df[date_cols[0]].apply(
+                    lambda x: re.search(r"\d{1,2}/\d{1,2}/\d{4}", str(x)).group(0)
+                    if re.search(r"\d{1,2}/\d{1,2}/\d{4}", str(x)) else ''
+                )
+            else:
+                # Si definitivamente no hay, dejar vacío
+                df['Start Date'] = ''
 
         # Full Property Address sin subdividir y quitar Lennar Options from CRM
         df['Full Property Address'] = df['Job Address']\
