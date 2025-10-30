@@ -5,12 +5,18 @@ echo ========================================
 echo.
 
 git add .
-git commit -m "Fix: Corregir error de deploy en Streamlit Cloud"
+git commit -m "Simplificar app para uso universal sin autenticacion"
 git push
 
 echo.
 echo ========================================
 echo Listo! Cambios subidos a GitHub
-echo Streamlit Cloud detectara los cambios automaticamente
+echo.
+echo VERSION FINAL SIMPLIFICADA:
+echo - Sin autenticacion ni claves
+echo - Solo: Seleccionar empresa y click
+echo - Cualquier persona puede usar la app
+echo.
+echo Streamlit Cloud redesplegara en 2-3 minutos
 echo ========================================
 pause

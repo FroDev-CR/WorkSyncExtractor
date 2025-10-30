@@ -39,19 +39,25 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
         try:
             # Login
             await page.goto(SUPPLYPRO_URL, timeout=60000)
-            await page.wait_for_load_state('networkidle')
+            await page.wait_for_load_state('domcontentloaded')
+
+            # Esperar que los campos de login estén visibles
+            await page.wait_for_selector('#user_name', state='visible', timeout=10000)
+            await page.wait_for_selector('#password', state='visible', timeout=10000)
 
             # Llenar formulario de login
             await page.fill('#user_name', username)
+            await page.wait_for_timeout(500)
             await page.fill('#password', password)
+            await page.wait_for_timeout(500)
 
             # Submit y esperar navegación
-            await page.click('input[type="submit"]')
-            await page.wait_for_load_state('networkidle', timeout=60000)
+            async with page.expect_navigation(wait_until='domcontentloaded', timeout=60000):
+                await page.click('input[type="submit"]')
 
-            # Verificar que el login fue exitoso y esperar a que la página esté lista
-            # Dar tiempo para que JavaScript cargue el menú
-            await page.wait_for_timeout(3000)
+            # Esperar a que la página cargue completamente después del login
+            await page.wait_for_load_state('domcontentloaded')
+            await page.wait_for_timeout(5000)
 
             # Intentar encontrar el link de órdenes
             try:
