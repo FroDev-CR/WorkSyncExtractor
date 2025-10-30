@@ -72,11 +72,15 @@ def main_page():
                 st.info("⚙️ Procesando órdenes...")
                 df_final = transformar_ordenes(df_raw, config)
 
-                # Guardar resultado
-                st.session_state.df_result = df_final
-                st.session_state.config_name = config
-
-                st.success(f"✅ ¡Operación completada! Se encontraron {len(df_final)} órdenes.")
+                # Verificar si hay órdenes válidas
+                if len(df_final) == 0:
+                    st.warning(f"⚠️ No se encontraron órdenes válidas para {config}. Es posible que no haya órdenes pendientes en este momento.")
+                    st.session_state.df_result = None
+                else:
+                    # Guardar resultado
+                    st.session_state.df_result = df_final
+                    st.session_state.config_name = config
+                    st.success(f"✅ ¡Operación completada! Se encontraron {len(df_final)} órdenes.")
 
             except Exception as e:
                 st.error(f"❌ Error en la extracción: {str(e)}")
@@ -99,8 +103,13 @@ def main_page():
         with col2:
             st.metric("Clientes únicos", df['Client Name'].nunique())
         with col3:
-            total_amount = df['total'].str.replace('$', '').str.replace(',', '').astype(float).sum()
-            st.metric("Total $", f"${total_amount:,.2f}")
+            try:
+                # Intentar calcular el total limpiando el formato de moneda
+                total_amount = df['total'].str.replace('$', '').str.replace(',', '').astype(float).sum()
+                st.metric("Total $", f"${total_amount:,.2f}")
+            except (ValueError, AttributeError):
+                # Si no se puede convertir, mostrar "N/A"
+                st.metric("Total $", "N/A")
 
         # Botones de descarga
         st.markdown("### 💾 Descargar")

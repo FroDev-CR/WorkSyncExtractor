@@ -146,6 +146,17 @@ def transformar_ordenes(df_raw: pd.DataFrame, config: str) -> pd.DataFrame:
         final = df[['Client Name', 'Job title Final', 'Full Property Address', 'total', 'Start Date']]
         final = final[~final.apply(lambda row: row.astype(str).str.lower().eq('nan').any(), axis=1)]
 
+        # Filtrar filas con "No orders found" u otros textos inválidos en 'total'
+        final = final[
+            ~final['total'].str.contains('No orders found', case=False, na=False) &
+            ~final['total'].str.lower().str.contains('function|script|var |return', case=False, na=False)
+        ]
+
+        # Filtrar solo filas donde 'total' tenga formato de precio válido (contiene $ o es numérico)
+        final = final[
+            final['total'].str.contains(r'[\$\d]', regex=True, na=False)
+        ]
+
         log(f"✅ Procesamiento completado: {len(final)} órdenes")
         return final
 
