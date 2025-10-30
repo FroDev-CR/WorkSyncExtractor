@@ -161,8 +161,26 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
 
             # Convertir a DataFrame SIN interpretar headers (igual que el código original)
             from io import StringIO
+            import tempfile
+            import os
+
             df = pd.read_html(StringIO(full_table_html), header=None)[0]
-            print(f"✅ Extraídas {len(df)} filas sin headers")
+            print(f"✅ Extraídas {len(df)} filas")
+
+            # Guardar a CSV temporal (como hace el código original)
+            temp_csv = tempfile.mktemp(suffix='.csv')
+            df.to_csv(temp_csv, index=False, encoding='utf-8-sig', header=False)
+            print(f"✅ Guardado a CSV temporal")
+
+            # Leer de vuelta SIN headers (como el código original)
+            df_final = pd.read_csv(temp_csv, header=None, dtype=str, encoding='utf-8-sig')
+            print(f"✅ Releído desde CSV: {len(df_final)} filas")
+
+            # Limpiar archivo temporal
+            try:
+                os.remove(temp_csv)
+            except:
+                pass
 
             # Cerrar sesión
             try:
@@ -171,7 +189,7 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             except:
                 pass
 
-            return df
+            return df_final
 
         except Exception as e:
             # Capturar screenshot para debugging
