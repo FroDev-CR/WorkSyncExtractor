@@ -2,8 +2,8 @@
 Script de prueba para verificar el scraper localmente
 """
 from config import CREDENTIALS
-from utils.scraper import ejecutar_extraccion
-from utils.transformer import transformar_ordenes
+from scraper import ejecutar_extraccion
+from transformer import transformar_ordenes
 
 def test_shine():
     print("=" * 50)

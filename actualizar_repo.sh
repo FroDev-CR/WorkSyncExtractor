@@ -5,7 +5,7 @@ echo "========================================"
 echo ""
 
 git add .
-git commit -m "Simplificar app para uso universal sin autenticacion"
+git commit -m "Fix: Mover modulos a raiz para evitar error de importacion"
 git push
 
 echo ""

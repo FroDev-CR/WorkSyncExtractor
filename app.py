@@ -25,8 +25,8 @@ def install_playwright():
 install_playwright()
 
 from config import CREDENTIALS
-from utils.scraper import ejecutar_extraccion
-from utils.transformer import transformar_ordenes
+from scraper import ejecutar_extraccion
+from transformer import transformar_ordenes
 
 
 # Configuración de la página
