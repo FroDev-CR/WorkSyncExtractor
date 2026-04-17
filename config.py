@@ -56,6 +56,9 @@ SHINE_CLIENT_MAP = {
     r"^Lennar Homes.*": "Lennar Homes",
 }
 
+# Requerido por transformer.py (no se usa en modo ShineAndBright)
+APEX_INSTRUCTION_REGEX = []
+
 SHINE_SUBDIVISION_MAP = {
     "5536 Lakeside Glen Lake Series 40s": "Lakeside Glen 40s",
     "5537 Lakeside Glen Lake Series 50s": "Lakeside Glen 50s",
