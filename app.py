@@ -1,12 +1,14 @@
 """
-ShineAndBright — SupplyPro Extractor
+ShineAndBright — SupplyPro Extractor + Jobber Uploader
 """
 import streamlit as st
 import pandas as pd
 from io import BytesIO
 import subprocess
 import sys
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 # ── Playwright install (solo primera vez en Streamlit Cloud) ──────────────────
 @st.cache_resource
@@ -27,47 +29,58 @@ from i18n import t
 from config import SUPPLYPRO_USERNAME, SUPPLYPRO_PASSWORD
 from scraper import ejecutar_extraccion
 from transformer import transformar_ordenes
+from jobber import storage, oauth
+from jobber.client import JobberClient, JobberAuthError
 
 
-# ── CSS responsive (colapsa columnas en móvil) ────────────────────────────────
+# ── CSS responsive ────────────────────────────────────────────────────────────
 MOBILE_CSS = """
 <style>
-/* En pantallas angostas, los st.columns se apilan verticalmente */
 @media (max-width: 640px) {
     [data-testid="column"] {
         width: 100% !important;
         flex: 1 1 100% !important;
         min-width: 100% !important;
     }
-    [data-testid="stMetric"] {
-        margin-bottom: 0.5rem;
-    }
+    [data-testid="stMetric"] { margin-bottom: 0.5rem; }
 }
-/* Sidebar más compacta en móvil */
 @media (max-width: 768px) {
-    section[data-testid="stSidebar"] {
-        min-width: 200px !important;
-    }
+    section[data-testid="stSidebar"] { min-width: 200px !important; }
 }
 </style>
 """
 
-
-# ── Configuración de página ───────────────────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="ShineAndBright — SupplyPro",
     page_icon="✨",
     layout="wide",
 )
-
 st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
+# ── Session state defaults ────────────────────────────────────────────────────
+for key, default in [
+    ("lang",       "es"),
+    ("df_result",  None),
+]:
+    if key not in st.session_state:
+        st.session_state[key] = default
 
-# ── Inicializar session_state ─────────────────────────────────────────────────
-if "lang" not in st.session_state:
-    st.session_state.lang = "es"
-if "df_result" not in st.session_state:
-    st.session_state.df_result = None
+
+# ── OAuth callback handler (debe ir antes de renderizar UI) ───────────────────
+if oauth.handle_callback():
+    if st.session_state.get("jobber_just_connected"):
+        st.session_state.pop("jobber_just_connected", None)
+        try:
+            client = JobberClient()
+            client.enrich_account_info()
+            tokens = storage.get_tokens()
+            account_name = tokens.get("account_name", "Jobber") if tokens else "Jobber"
+            st.success(t("jobber_connect_success", account=account_name))
+        except Exception as e:
+            st.error(t("jobber_connect_error", err=e))
+    elif err := st.session_state.pop("jobber_connect_error", None):
+        st.error(t("jobber_connect_error", err=err))
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -86,9 +99,33 @@ with st.sidebar:
     st.session_state.lang = "es" if lang_choice.startswith("🇪🇸") else "en"
 
     st.markdown("---")
-    # Placeholder para estado de Jobber (se poblará en Fase 2)
+
+    # Estado de conexión Jobber
     st.caption(t("sidebar_jobber_status"))
-    st.info(t("jobber_not_connected"))
+    tokens = storage.get_tokens()
+    if tokens:
+        account_name = tokens.get("account_name") or "Jobber"
+        st.success(t("jobber_connected", account=account_name))
+
+        col_test, col_disc = st.columns(2)
+        with col_test:
+            if st.button(t("btn_test_connection"), use_container_width=True):
+                try:
+                    client = JobberClient()
+                    account = client.fetch_account()
+                    st.toast(t("jobber_test_ok", account=account["name"]))
+                except JobberAuthError:
+                    st.warning(t("jobber_token_expired"))
+                except Exception as e:
+                    st.error(t("jobber_test_fail", err=e))
+        with col_disc:
+            if st.button(t("btn_disconnect_jobber"), use_container_width=True):
+                storage.clear_tokens()
+                st.rerun()
+    else:
+        st.info(t("jobber_not_connected"))
+        auth_url, _ = oauth.build_auth_url()
+        st.link_button(t("btn_connect_jobber"), auth_url, use_container_width=True)
 
 
 # ── Contenido principal ───────────────────────────────────────────────────────
@@ -167,10 +204,6 @@ if st.session_state.df_result is not None:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
-
-# ── Ayuda ─────────────────────────────────────────────────────────────────────
-with st.expander(t("help_title")):
-    st.markdown(t("help_text"))
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("---")
