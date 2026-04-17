@@ -6,9 +6,9 @@ import pandas as pd
 from io import BytesIO, StringIO
 import subprocess
 import sys
-import logging
 
-logging.basicConfig(level=logging.INFO)
+import logger as _log
+_log.setup()
 
 
 # ── Playwright install ────────────────────────────────────────────────────────

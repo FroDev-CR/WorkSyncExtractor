@@ -2,13 +2,13 @@
 Cliente GraphQL para Jobber con refresh automático de tokens y retry con backoff.
 """
 import time
-import logging
 import requests
 from datetime import datetime, timedelta, timezone
 
 from jobber import storage, oauth
+import logger as _log
 
-logger = logging.getLogger(__name__)
+logger = _log.get(__name__)
 
 GRAPHQL_URL     = "https://api.getjobber.com/api/graphql"
 API_VERSION     = "2025-01-20"

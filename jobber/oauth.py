@@ -8,6 +8,9 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 from jobber import storage
+import logger as _log
+
+_logger = _log.get(__name__)
 
 AUTHORIZE_URL = "https://api.getjobber.com/api/oauth/authorize"
 TOKEN_URL     = "https://api.getjobber.com/api/oauth/token"
@@ -71,8 +74,7 @@ def refresh_tokens(refresh_token: str) -> dict:
     data = resp.json()
 
     if "warning" in data:
-        import logging
-        logging.warning("Jobber refresh warning: %s", data["warning"])
+        _logger.warning("Jobber refresh warning: %s", data["warning"])
 
     return data
 
