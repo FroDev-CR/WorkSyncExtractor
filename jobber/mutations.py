@@ -92,6 +92,27 @@ mutation JobCreate($input: JobCreateAttributes!) {
 }
 """
 
+# ── Schema introspection (debug) ─────────────────────────────────────────────
+
+INTROSPECT_TYPE_QUERY = """
+query IntrospectType($typeName: String!) {
+  __type(name: $typeName) {
+    name
+    inputFields {
+      name
+      type {
+        name
+        kind
+        ofType {
+          name
+          kind
+        }
+      }
+    }
+  }
+}
+"""
+
 # ── Account ───────────────────────────────────────────────────────────────────
 
 ACCOUNT_QUERY = """

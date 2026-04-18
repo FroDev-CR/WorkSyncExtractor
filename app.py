@@ -433,6 +433,29 @@ if st.session_state.upload_report:
             st.rerun()
 
 
+# ── Debug: introspección de schema (temporal) ────────────────────────────────
+if storage.has_tokens():
+    with st.expander("🔧 Debug — Inspeccionar schema de Jobber"):
+        from jobber.mutations import INTROSPECT_TYPE_QUERY
+        type_name = st.text_input("Nombre del tipo a inspeccionar", value="JobCreateAttributes")
+        if st.button("Inspeccionar"):
+            try:
+                c = JobberClient()
+                result = c.execute(INTROSPECT_TYPE_QUERY, {"typeName": type_name})
+                type_data = result["data"]["__type"]
+                if not type_data:
+                    st.error(f"Tipo '{type_name}' no encontrado en el schema.")
+                else:
+                    fields = type_data.get("inputFields") or []
+                    rows = []
+                    for f in fields:
+                        t_info = f["type"]
+                        kind = t_info.get("name") or (t_info.get("ofType") or {}).get("name", "")
+                        rows.append({"Campo": f["name"], "Tipo": kind, "Kind": t_info["kind"]})
+                    st.dataframe(rows, use_container_width=True)
+            except Exception as e:
+                st.error(str(e))
+
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
