@@ -23,6 +23,16 @@ def parse_date_iso(raw: str) -> str:
     return f"{y}-{int(m):02d}-{int(d):02d}T00:00:00Z"
 
 
+def parse_date_only(raw: str) -> str:
+    """Convierte 'MM/DD/YYYY' → 'YYYY-MM-DD' (ISO8601Date). Devuelve '' si falla."""
+    raw = str(raw).strip()
+    match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    if not match:
+        return ""
+    m, d, y = match.groups()
+    return f"{y}-{int(m):02d}-{int(d):02d}"
+
+
 def parse_address(raw: str) -> dict:
     """
     Intenta separar 'NÚMERO CALLE, CIUDAD, ESTADO ZIP' en campos.
@@ -79,12 +89,15 @@ def map_row_to_job_input(row: dict, property_id: str) -> dict:
     property_id: ID de la propiedad ya creada o encontrada en Jobber
     """
     unit_price = parse_total(row["total"])
-    start_iso  = parse_date_iso(row["Start Date"])
+    start_date = parse_date_only(row["Start Date"])
 
     attributes: dict = {
         "propertyId": property_id,
         "title":      row["Job title Final"],
-        "invoicing":  {},
+        "invoicing": {
+            "invoicingType":     "FLAT_PRICE",
+            "invoicingSchedule": "UPON_COMPLETION",
+        },
         "lineItems": [
             {
                 "name":                      "Cleaning Service",
@@ -96,8 +109,8 @@ def map_row_to_job_input(row: dict, property_id: str) -> dict:
         ],
     }
 
-    if start_iso:
-        attributes["scheduling"] = {"startAt": start_iso}
+    if start_date:
+        attributes["timeframe"] = {"startAt": start_date}
 
     return attributes
 

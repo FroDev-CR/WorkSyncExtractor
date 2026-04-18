@@ -98,6 +98,7 @@ INTROSPECT_TYPE_QUERY = """
 query IntrospectType($typeName: String!) {
   __type(name: $typeName) {
     name
+    kind
     inputFields {
       name
       type {
@@ -106,8 +107,15 @@ query IntrospectType($typeName: String!) {
         ofType {
           name
           kind
+          ofType {
+            name
+            kind
+          }
         }
       }
+    }
+    enumValues {
+      name
     }
   }
 }

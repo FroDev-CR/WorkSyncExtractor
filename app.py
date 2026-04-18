@@ -485,25 +485,33 @@ if storage.has_tokens():
                     if not type_data:
                         st.error(f"Tipo '{type_name}' no encontrado.")
                     else:
+                        st.write(f"Kind: **{type_data.get('kind')}**")
+                        enum_vals = type_data.get("enumValues") or []
+                        if enum_vals:
+                            st.write("Valores: " + ", ".join(v["name"] for v in enum_vals))
                         fields = type_data.get("inputFields") or []
-                        rows = []
-                        for f in fields:
-                            t_info = f["type"]
-                            kind = t_info.get("name") or (t_info.get("ofType") or {}).get("name", "")
-                            rows.append({"Campo": f["name"], "Tipo": kind, "Kind": t_info["kind"]})
-                        st.dataframe(rows, use_container_width=True)
+                        if fields:
+                            rows = []
+                            for f in fields:
+                                ti = f["type"]
+                                oti = ti.get("ofType") or {}
+                                oti2 = oti.get("ofType") or {}
+                                tipo = ti.get("name") or oti.get("name") or oti2.get("name", "")
+                                rows.append({"Campo": f["name"], "Tipo": tipo, "Kind": ti["kind"]})
+                            st.dataframe(rows, use_container_width=True)
                 except Exception as e:
                     st.error(str(e))
 
         with col_batch:
             st.caption("Batch — tipos pendientes de verificar")
             PENDING_TYPES = [
-                "JobInvoicingAttributes",
-                "JobSchedulingAttributes",
-                "TimeframeAttributes",
-                "LineItemInput",
-                "JobLineItemInput",
-                "LineItemAttributes",
+                "BillingStrategy",
+                "BillingFrequencyEnum",
+                "ProductOrServiceInput",
+                "ServiceInput",
+                "LineItemCreateInput",
+                "LineItemInputAttributes",
+                "ProductAndServiceInput",
             ]
             if st.button("Inspeccionar todos"):
                 try:
@@ -514,17 +522,20 @@ if storage.has_tokens():
                         if not type_data:
                             st.warning(f"**{tn}** — no encontrado")
                         else:
+                            st.markdown(f"**{tn}** ({type_data.get('kind', '')})")
+                            enum_vals = type_data.get("enumValues") or []
+                            if enum_vals:
+                                st.write(", ".join(v["name"] for v in enum_vals))
                             fields = type_data.get("inputFields") or []
-                            rows = [
-                                {
-                                    "Campo": f["name"],
-                                    "Tipo": f["type"].get("name") or (f["type"].get("ofType") or {}).get("name", ""),
-                                    "Kind": f["type"]["kind"],
-                                }
-                                for f in fields
-                            ]
-                            st.markdown(f"**{tn}**")
-                            st.dataframe(rows, use_container_width=True)
+                            if fields:
+                                rows = []
+                                for f in fields:
+                                    ti = f["type"]
+                                    oti = ti.get("ofType") or {}
+                                    oti2 = oti.get("ofType") or {}
+                                    tipo = ti.get("name") or oti.get("name") or oti2.get("name", "")
+                                    rows.append({"Campo": f["name"], "Tipo": tipo, "Kind": ti["kind"]})
+                                st.dataframe(rows, use_container_width=True)
                 except Exception as e:
                     st.error(str(e))
 
