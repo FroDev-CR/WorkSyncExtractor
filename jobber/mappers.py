@@ -95,8 +95,8 @@ def map_row_to_job_input(row: dict, property_id: str) -> dict:
         "propertyId": property_id,
         "title":      row["Job title Final"],
         "invoicing": {
-            "invoicingType":     "FLAT_PRICE",
-            "invoicingSchedule": "UPON_COMPLETION",
+            "invoicingType":     "FIXED_PRICE",
+            "invoicingSchedule": "ON_COMPLETION",
         },
         "lineItems": [
             {
