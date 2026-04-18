@@ -181,6 +181,19 @@ if st.session_state.df_editor is not None:
     if invalid_rows:
         st.warning("⚠️ " + " · ".join(invalid_rows))
 
+    # Botones seleccionar / deseleccionar todas (solo filas no subidas)
+    btn_all, btn_none, _ = st.columns([1, 1, 6])
+    with btn_all:
+        if st.button("☑ Todas", use_container_width=True):
+            mask = st.session_state.df_editor[col_uploaded] == False
+            st.session_state.df_editor.loc[mask, col_subir] = True
+            st.rerun()
+    with btn_none:
+        if st.button("☐ Ninguna", use_container_width=True):
+            mask = st.session_state.df_editor[col_uploaded] == False
+            st.session_state.df_editor.loc[mask, col_subir] = False
+            st.rerun()
+
     # Columnas configuradas para el editor
     col_config = {
         col_subir: st.column_config.CheckboxColumn(
