@@ -198,12 +198,28 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
             await page.wait_for_selector('select[name="ref_epo_filter"]', state='visible', timeout=30000)
             print(f"✅ Filtro encontrado")
 
-            # Paso 8: Seleccionar filtro
+            # Paso 8: Seleccionar filtro y ampliar filas por página
             print(f"⚙️ Aplicando filtro...")
             await page.select_option('select[name="ref_epo_filter"]', label='Show All Except EPOs')
             await page.wait_for_timeout(5000)
             await page.wait_for_load_state('networkidle', timeout=30000)
             print(f"✅ Filtro aplicado")
+
+            # Aumentar filas por página para capturar todas en una sola página
+            try:
+                rpp = await page.query_selector('select[name="rowsPerPage"], select[name="rows_per_page"], select[name="RowsPerPage"]')
+                if rpp:
+                    # Intentar con 200, si no existe probar con el valor más alto disponible
+                    options = await rpp.query_selector_all('option')
+                    values = [await o.get_attribute('value') for o in options]
+                    target = '200' if '200' in values else (values[-1] if values else None)
+                    if target:
+                        await rpp.select_option(value=target)
+                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        await page.wait_for_timeout(3000)
+                        print(f"✅ Filas por página ajustado a {target}")
+            except Exception as rpp_err:
+                print(f"⚠️ No se pudo ajustar filas por página: {rpp_err}")
 
             # Paso 9: Extraer tabla
             print(f"📊 Extrayendo tabla de órdenes...")
@@ -238,6 +254,80 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
                 os.remove(temp_csv)
             except:
                 pass
+
+            # Paso 10: Seleccionar todas las órdenes y aceptarlas
+            print("✅ Aceptando todas las órdenes...")
+            try:
+                # Click en el checkbox del header para seleccionar todas las filas
+                header_cb = await page.query_selector('th input[type="checkbox"]')
+                if header_cb:
+                    await header_cb.click()
+                    await page.wait_for_timeout(800)
+                    print("✅ Header checkbox clickeado")
+                else:
+                    print("⚠️ No se encontró header checkbox, buscando alternativa...")
+                    # Algunas versiones de SupplyPro usan un <input> con name específico
+                    header_cb = await page.query_selector('input[name="checkall"], input[name="check_all"], input[name="all"]')
+                    if header_cb:
+                        await header_cb.click()
+                        await page.wait_for_timeout(800)
+
+                # Seleccionar "Accept Selected Orders" en el dropdown de acción
+                # Probar múltiples selectores posibles
+                action_selected = False
+                for sel in ['select[name="action"]', 'select[name="Action"]', 'select[name="mass_action"]']:
+                    try:
+                        el = await page.query_selector(sel)
+                        if el:
+                            await page.select_option(sel, label='Accept Selected Orders')
+                            action_selected = True
+                            print(f"✅ Acción seleccionada con selector: {sel}")
+                            break
+                    except Exception:
+                        pass
+
+                if not action_selected:
+                    # Fallback: buscar cualquier select que tenga esa opción
+                    selects = await page.query_selector_all('select')
+                    for s in selects:
+                        options = await s.query_selector_all('option')
+                        for opt in options:
+                            txt = await opt.text_content()
+                            if txt and 'Accept Selected Orders' in txt:
+                                val = await opt.get_attribute('value')
+                                await s.select_option(value=val)
+                                action_selected = True
+                                print("✅ Acción seleccionada (fallback)")
+                                break
+                        if action_selected:
+                            break
+
+                if not action_selected:
+                    print("⚠️ No se pudo seleccionar la acción — órdenes no aceptadas")
+                else:
+                    await page.wait_for_timeout(500)
+                    # Click en Update
+                    updated = False
+                    for sel in ['input[value="Update"]', 'button:has-text("Update")', 'input[type="submit"][value="Update"]']:
+                        try:
+                            btn = await page.query_selector(sel)
+                            if btn:
+                                await btn.click()
+                                updated = True
+                                print("✅ Click en Update enviado")
+                                break
+                        except Exception:
+                            pass
+
+                    if updated:
+                        await page.wait_for_load_state('networkidle', timeout=30000)
+                        await page.wait_for_timeout(2000)
+                        print("✅ Órdenes aceptadas exitosamente")
+                    else:
+                        print("⚠️ No se encontró el botón Update")
+
+            except Exception as accept_err:
+                print(f"⚠️ Error al aceptar órdenes (extracción OK): {accept_err}")
 
             # Cerrar sesión
             try:
