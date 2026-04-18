@@ -125,7 +125,7 @@ class JobberClient:
                     cost.get("throttleStatus", {}).get("currentlyAvailable"),
                 )
 
-            # THROTTLED dentro del body GraphQL
+            # Errores GraphQL en el body
             errors = result.get("errors", [])
             if errors:
                 codes = [e.get("extensions", {}).get("code") for e in errors]
@@ -139,6 +139,15 @@ class JobberClient:
                     time.sleep(wait)
                     last_error = Exception("GraphQL THROTTLED")
                     continue
+                # Otros errores GraphQL — loguear y lanzar con detalle
+                messages = [e.get("message", str(e)) for e in errors]
+                logger.error("GraphQL errors: %s", messages)
+                raise Exception(f"Jobber API error: {' | '.join(messages)}")
+
+            # Si no hay 'data', la respuesta es inesperada
+            if "data" not in result:
+                logger.error("Respuesta sin 'data': %s", result)
+                raise Exception(f"Respuesta inesperada de Jobber: {result}")
 
             return result
 
