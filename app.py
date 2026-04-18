@@ -344,7 +344,7 @@ if st.session_state.pop("trigger_upload", False):
             client_id  = get_or_find_client(row["Client Name"])
             attributes = map_row_to_job_input(row.to_dict(), client_id)
 
-            res = client.execute(CREATE_JOB_MUTATION, {"attributes": attributes})
+            res = client.execute(CREATE_JOB_MUTATION, {"input": attributes})
             errors = res["data"]["jobCreate"]["userErrors"]
             if errors:
                 raise Exception(errors[0]["message"])
