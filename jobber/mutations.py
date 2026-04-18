@@ -77,7 +77,7 @@ mutation PropertyCreate($clientId: EncodedId!, $input: PropertyCreateInput!) {
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
 CREATE_JOB_MUTATION = """
-mutation JobCreate($input: JobCreateInput!) {
+mutation JobCreate($input: JobCreateAttributes!) {
   jobCreate(input: $input) {
     job {
       id
