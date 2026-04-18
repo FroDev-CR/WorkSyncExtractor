@@ -12,6 +12,7 @@ STRINGS = {
     "info_processing": "⚙️ Processing orders...",
     # Results
     "success_extracted": "✅ {n} orders extracted successfully.",
+    "warning_connect_jobber_first": "⚠️ You must connect to Jobber before extracting orders. Use the button in the left panel.",
     "warning_no_orders": "⚠️ No pending orders found at this time.",
     "error_extraction": "❌ Error during extraction: {err}",
     "info_retry": "💡 Try again in a few seconds. If the issue persists, contact the administrator.",

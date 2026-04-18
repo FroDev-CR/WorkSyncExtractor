@@ -12,6 +12,7 @@ STRINGS = {
     "info_processing": "⚙️ Procesando órdenes...",
     # Resultados
     "success_extracted": "✅ {n} órdenes extraídas correctamente.",
+    "warning_connect_jobber_first": "⚠️ Debes conectar con Jobber antes de extraer órdenes. Usa el botón en el panel izquierdo.",
     "warning_no_orders": "⚠️ No se encontraron órdenes pendientes en este momento.",
     "error_extraction": "❌ Error durante la extracción: {err}",
     "info_retry": "💡 Intenta de nuevo en unos segundos. Si persiste, contacta al administrador.",

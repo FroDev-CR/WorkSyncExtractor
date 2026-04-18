@@ -135,7 +135,10 @@ st.markdown(f"### {t('app_subtitle')}")
 st.markdown("---")
 
 # ── Extracción ────────────────────────────────────────────────────────────────
-if st.button(t("btn_export"), type="primary", use_container_width=True):
+if not storage.has_tokens():
+    st.warning(t("warning_connect_jobber_first"))
+
+if st.button(t("btn_export"), type="primary", use_container_width=True, disabled=not storage.has_tokens()):
     with st.spinner(t("spinner_extracting")):
         try:
             st.info(t("info_connecting"))
