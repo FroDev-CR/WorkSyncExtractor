@@ -57,7 +57,7 @@ def addresses_match(stored: dict, candidate: str) -> bool:
     return stored_street == candidate_street
 
 
-def map_row_to_job_input(row: dict, client_id: str, property_id: str) -> dict:
+def map_row_to_job_input(row: dict, client_id: str) -> dict:
     """
     Construye el dict de atributos para la mutation jobCreate.
 
@@ -65,11 +65,18 @@ def map_row_to_job_input(row: dict, client_id: str, property_id: str) -> dict:
     """
     unit_price = parse_total(row["total"])
     start_iso  = parse_date_iso(row["Start Date"])
+    addr       = parse_address(row["Full Property Address"])
 
     attributes: dict = {
-        "clientId":   client_id,
-        "title":      row["Job title Final"],
-        "propertyId": property_id,
+        "clientId": client_id,
+        "title":    row["Job title Final"],
+        "address": {
+            "street":     addr["street"],
+            "city":       addr["city"],
+            "province":   addr["province"],
+            "postalCode": addr["postalCode"],
+            "country":    addr["country"],
+        },
         "lineItems": [
             {
                 "name":        "Cleaning Service",

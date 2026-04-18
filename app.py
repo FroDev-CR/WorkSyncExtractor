@@ -304,15 +304,13 @@ if st.session_state.pop("trigger_upload", False):
     # Importar aquí para no cargar en cada rerun
     from jobber.mutations import (
         LIST_CLIENTS_QUERY, CREATE_CLIENT_MUTATION,
-        FIND_PROPERTY_QUERY, CREATE_PROPERTY_MUTATION,
         CREATE_JOB_MUTATION,
     )
-    from jobber.mappers import parse_total, parse_address, addresses_match, map_row_to_job_input
+    from jobber.mappers import map_row_to_job_input
     import time
 
-    # Cache de clients y properties para evitar queries repetidas
-    client_cache   = {}  # nombre → id
-    property_cache = {}  # (client_id, address) → property_id
+    # Cache de clientes para evitar queries repetidas
+    client_cache = {}  # nombre.lower() → id
 
     # Cargar todos los clientes una sola vez al inicio del batch
     status_text.info("Cargando clientes de Jobber...")
@@ -326,7 +324,7 @@ if st.session_state.pop("trigger_upload", False):
         cached = client_cache.get(name.lower())
         if cached:
             return cached
-        # No encontrado — crear
+        # No encontrado en Jobber — crear
         res2 = client.execute(CREATE_CLIENT_MUTATION, {
             "input": {"companyName": name, "isCompany": True}
         })
@@ -334,32 +332,7 @@ if st.session_state.pop("trigger_upload", False):
         if errors:
             raise Exception(f"Error creando cliente '{name}': {errors[0]['message']}")
         new_id = res2["data"]["clientCreate"]["client"]["id"]
-        client_cache[name] = new_id
-        return new_id
-
-    def get_or_create_property(client_id: str, address: str) -> str:
-        cache_key = (client_id, address.strip().lower())
-        if cache_key in property_cache:
-            return property_cache[cache_key]
-
-        result = client.execute(FIND_PROPERTY_QUERY, {"clientId": client_id})
-        props  = result["data"]["client"]["clientProperties"]["nodes"]
-        for prop in props:
-            if addresses_match(prop["address"], address):
-                property_cache[cache_key] = prop["id"]
-                return prop["id"]
-
-        # Crear nueva property
-        addr_input = parse_address(address)
-        res2 = client.execute(CREATE_PROPERTY_MUTATION, {
-            "clientId": client_id,
-            "input":    addr_input,
-        })
-        errors = res2["data"]["propertyCreate"]["userErrors"]
-        if errors:
-            raise Exception(f"Error creando property: {errors[0]['message']}")
-        new_id = res2["data"]["propertyCreate"]["properties"][0]["id"]
-        property_cache[cache_key] = new_id
+        client_cache[name.lower()] = new_id
         return new_id
 
     for i, (idx, row) in enumerate(pending.iterrows()):
@@ -368,9 +341,8 @@ if st.session_state.pop("trigger_upload", False):
         progress_bar.progress((i) / total_rows)
 
         try:
-            client_id   = get_or_find_client(row["Client Name"])
-            property_id = get_or_create_property(client_id, row["Full Property Address"])
-            attributes  = map_row_to_job_input(row.to_dict(), client_id, property_id)
+            client_id  = get_or_find_client(row["Client Name"])
+            attributes = map_row_to_job_input(row.to_dict(), client_id)
 
             res = client.execute(CREATE_JOB_MUTATION, {"attributes": attributes})
             errors = res["data"]["jobCreate"]["userErrors"]
