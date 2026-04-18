@@ -83,6 +83,25 @@ mutation JobCreate($input: JobCreateAttributes!) {
       id
       jobNumber
       jobberWebUri
+      visits(first: 1) {
+        nodes {
+          id
+        }
+      }
+    }
+    userErrors {
+      message
+      path
+    }
+  }
+}
+"""
+
+VISIT_START_MUTATION = """
+mutation VisitStart($visitId: EncodedId!) {
+  visitStart(visitId: $visitId) {
+    visit {
+      id
     }
     userErrors {
       message
