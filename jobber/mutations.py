@@ -62,7 +62,7 @@ mutation PropertyCreate($clientId: EncodedId!, $input: PropertyCreateInput!) {
     properties {
       id
       address {
-        street
+        street1
         city
       }
     }

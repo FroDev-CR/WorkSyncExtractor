@@ -304,13 +304,15 @@ if st.session_state.pop("trigger_upload", False):
     # Importar aquí para no cargar en cada rerun
     from jobber.mutations import (
         LIST_CLIENTS_QUERY, CREATE_CLIENT_MUTATION,
+        FIND_PROPERTY_QUERY, CREATE_PROPERTY_MUTATION,
         CREATE_JOB_MUTATION,
     )
-    from jobber.mappers import map_row_to_job_input
+    from jobber.mappers import map_row_to_job_input, build_property_input, addresses_match
     import time
 
-    # Cache de clientes para evitar queries repetidas
-    client_cache = {}  # nombre.lower() → id
+    # Cache de clientes y properties para evitar queries repetidas
+    client_cache   = {}  # nombre.lower() → id
+    property_cache = {}  # client_id → {address_str.lower(): property_id}
 
     # Cargar todos los clientes una sola vez al inicio del batch
     status_text.info("Cargando clientes de Jobber...")
@@ -324,7 +326,6 @@ if st.session_state.pop("trigger_upload", False):
         cached = client_cache.get(name.lower())
         if cached:
             return cached
-        # No encontrado en Jobber — crear
         res2 = client.execute(CREATE_CLIENT_MUTATION, {
             "input": {"companyName": name, "isCompany": True}
         })
@@ -335,14 +336,47 @@ if st.session_state.pop("trigger_upload", False):
         client_cache[name.lower()] = new_id
         return new_id
 
+    def get_or_create_property(client_id: str, address_str: str) -> str:
+        # Check local cache first
+        addr_key = address_str.strip().lower()
+        cached = (property_cache.get(client_id) or {}).get(addr_key)
+        if cached:
+            return cached
+
+        # Query Jobber for existing properties
+        res_p = client.execute(FIND_PROPERTY_QUERY, {"clientId": client_id})
+        nodes = res_p["data"]["client"]["clientProperties"]["nodes"]
+        for node in nodes:
+            if addresses_match(node.get("address") or {}, address_str):
+                pid = node["id"]
+                property_cache.setdefault(client_id, {})[addr_key] = pid
+                return pid
+
+        # Create new property
+        prop_input = build_property_input(address_str)
+        res_c = client.execute(CREATE_PROPERTY_MUTATION, {
+            "clientId": client_id,
+            "input": {"properties": [prop_input]},
+        })
+        errors = res_c["data"]["propertyCreate"]["userErrors"]
+        if errors:
+            raise Exception(f"Error creando propiedad: {errors[0]['message']}")
+        properties = res_c["data"]["propertyCreate"]["properties"]
+        if not properties:
+            raise Exception("propertyCreate no devolvió ninguna propiedad")
+        pid = properties[0]["id"]
+        property_cache.setdefault(client_id, {})[addr_key] = pid
+        return pid
+
     for i, (idx, row) in enumerate(pending.iterrows()):
         title = row["Job title Final"]
         status_text.info(t("upload_progress", i=i + 1, n=total_rows, title=title))
         progress_bar.progress((i) / total_rows)
 
         try:
-            client_id  = get_or_find_client(row["Client Name"])
-            attributes = map_row_to_job_input(row.to_dict(), client_id)
+            client_id   = get_or_find_client(row["Client Name"])
+            property_id = get_or_create_property(client_id, row["Full Property Address"])
+            attributes  = map_row_to_job_input(row.to_dict(), property_id)
 
             res = client.execute(CREATE_JOB_MUTATION, {"input": attributes})
             errors = res["data"]["jobCreate"]["userErrors"]
@@ -437,24 +471,62 @@ if st.session_state.upload_report:
 if storage.has_tokens():
     with st.expander("🔧 Debug — Inspeccionar schema de Jobber"):
         from jobber.mutations import INTROSPECT_TYPE_QUERY
-        type_name = st.text_input("Nombre del tipo a inspeccionar", value="JobCreateAttributes")
-        if st.button("Inspeccionar"):
-            try:
-                c = JobberClient()
-                result = c.execute(INTROSPECT_TYPE_QUERY, {"typeName": type_name})
-                type_data = result["data"]["__type"]
-                if not type_data:
-                    st.error(f"Tipo '{type_name}' no encontrado en el schema.")
-                else:
-                    fields = type_data.get("inputFields") or []
-                    rows = []
-                    for f in fields:
-                        t_info = f["type"]
-                        kind = t_info.get("name") or (t_info.get("ofType") or {}).get("name", "")
-                        rows.append({"Campo": f["name"], "Tipo": kind, "Kind": t_info["kind"]})
-                    st.dataframe(rows, use_container_width=True)
-            except Exception as e:
-                st.error(str(e))
+
+        col_single, col_batch = st.columns(2)
+
+        with col_single:
+            st.caption("Tipo individual")
+            type_name = st.text_input("Nombre del tipo", value="JobInvoicingAttributes")
+            if st.button("Inspeccionar"):
+                try:
+                    _c = JobberClient()
+                    result = _c.execute(INTROSPECT_TYPE_QUERY, {"typeName": type_name})
+                    type_data = result["data"]["__type"]
+                    if not type_data:
+                        st.error(f"Tipo '{type_name}' no encontrado.")
+                    else:
+                        fields = type_data.get("inputFields") or []
+                        rows = []
+                        for f in fields:
+                            t_info = f["type"]
+                            kind = t_info.get("name") or (t_info.get("ofType") or {}).get("name", "")
+                            rows.append({"Campo": f["name"], "Tipo": kind, "Kind": t_info["kind"]})
+                        st.dataframe(rows, use_container_width=True)
+                except Exception as e:
+                    st.error(str(e))
+
+        with col_batch:
+            st.caption("Batch — tipos pendientes de verificar")
+            PENDING_TYPES = [
+                "JobInvoicingAttributes",
+                "JobSchedulingAttributes",
+                "TimeframeAttributes",
+                "LineItemInput",
+                "JobLineItemInput",
+                "LineItemAttributes",
+            ]
+            if st.button("Inspeccionar todos"):
+                try:
+                    _c = JobberClient()
+                    for tn in PENDING_TYPES:
+                        result = _c.execute(INTROSPECT_TYPE_QUERY, {"typeName": tn})
+                        type_data = result["data"]["__type"]
+                        if not type_data:
+                            st.warning(f"**{tn}** — no encontrado")
+                        else:
+                            fields = type_data.get("inputFields") or []
+                            rows = [
+                                {
+                                    "Campo": f["name"],
+                                    "Tipo": f["type"].get("name") or (f["type"].get("ofType") or {}).get("name", ""),
+                                    "Kind": f["type"]["kind"],
+                                }
+                                for f in fields
+                            ]
+                            st.markdown(f"**{tn}**")
+                            st.dataframe(rows, use_container_width=True)
+                except Exception as e:
+                    st.error(str(e))
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("---")
