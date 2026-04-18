@@ -256,68 +256,82 @@ async def extraer_ordenes(username: str, password: str) -> pd.DataFrame:
                 pass
 
             # Paso 10: Seleccionar todas las órdenes y aceptarlas
-            print("✅ Aceptando todas las órdenes...")
+            print("🔍 Diagnosticando elementos de aceptación...")
             try:
-                # Click en el checkbox del header para seleccionar todas las filas
-                header_cb = await page.query_selector('th input[type="checkbox"]')
-                if header_cb:
+                # ── DEBUG: listar todos los inputs y selects visibles ──────────
+                all_inputs = await page.query_selector_all('input[type="checkbox"]')
+                print(f"  checkboxes encontrados: {len(all_inputs)}")
+                for inp in all_inputs[:5]:
+                    name = await inp.get_attribute('name') or ''
+                    id_  = await inp.get_attribute('id') or ''
+                    print(f"    checkbox name={name!r} id={id_!r}")
+
+                all_selects = await page.query_selector_all('select')
+                print(f"  selects encontrados: {len(all_selects)}")
+                for s in all_selects:
+                    name = await s.get_attribute('name') or ''
+                    opts = await s.query_selector_all('option')
+                    opt_texts = []
+                    for o in opts:
+                        t = await o.text_content()
+                        opt_texts.append((t or '').strip())
+                    print(f"    select name={name!r} opciones={opt_texts}")
+
+                all_btns = await page.query_selector_all('input[type="submit"], input[type="button"], button')
+                print(f"  botones encontrados: {len(all_btns)}")
+                for b in all_btns:
+                    val  = await b.get_attribute('value') or ''
+                    txt  = await b.text_content() or ''
+                    name = await b.get_attribute('name') or ''
+                    print(f"    btn value={val!r} text={txt.strip()!r} name={name!r}")
+
+                # Screenshot para ver el estado de la página
+                try:
+                    await page.screenshot(path='/tmp/debug_accept.png', full_page=False)
+                    print("  Screenshot guardado en /tmp/debug_accept.png")
+                except Exception:
+                    pass
+
+                # ── Seleccionar todas: header checkbox ────────────────────────
+                header_cb = None
+                # El primer checkbox suele ser el del header
+                if all_inputs:
+                    header_cb = all_inputs[0]
+                    name = await header_cb.get_attribute('name') or ''
+                    print(f"✅ Usando primer checkbox (name={name!r}) como header")
                     await header_cb.click()
                     await page.wait_for_timeout(800)
-                    print("✅ Header checkbox clickeado")
-                else:
-                    print("⚠️ No se encontró header checkbox, buscando alternativa...")
-                    # Algunas versiones de SupplyPro usan un <input> con name específico
-                    header_cb = await page.query_selector('input[name="checkall"], input[name="check_all"], input[name="all"]')
-                    if header_cb:
-                        await header_cb.click()
-                        await page.wait_for_timeout(800)
 
-                # Seleccionar "Accept Selected Orders" en el dropdown de acción
-                # Probar múltiples selectores posibles
+                # ── Seleccionar acción "Accept Selected Orders" ───────────────
                 action_selected = False
-                for sel in ['select[name="action"]', 'select[name="Action"]', 'select[name="mass_action"]']:
-                    try:
-                        el = await page.query_selector(sel)
-                        if el:
-                            await page.select_option(sel, label='Accept Selected Orders')
+                for s in all_selects:
+                    opts = await s.query_selector_all('option')
+                    for opt in opts:
+                        txt = (await opt.text_content() or '').strip()
+                        if 'Accept Selected Orders' in txt:
+                            val = await opt.get_attribute('value') or txt
+                            await s.select_option(value=val)
                             action_selected = True
-                            print(f"✅ Acción seleccionada con selector: {sel}")
+                            sname = await s.get_attribute('name') or ''
+                            print(f"✅ Acción seleccionada en select name={sname!r} value={val!r}")
                             break
-                    except Exception:
-                        pass
+                    if action_selected:
+                        break
 
                 if not action_selected:
-                    # Fallback: buscar cualquier select que tenga esa opción
-                    selects = await page.query_selector_all('select')
-                    for s in selects:
-                        options = await s.query_selector_all('option')
-                        for opt in options:
-                            txt = await opt.text_content()
-                            if txt and 'Accept Selected Orders' in txt:
-                                val = await opt.get_attribute('value')
-                                await s.select_option(value=val)
-                                action_selected = True
-                                print("✅ Acción seleccionada (fallback)")
-                                break
-                        if action_selected:
-                            break
-
-                if not action_selected:
-                    print("⚠️ No se pudo seleccionar la acción — órdenes no aceptadas")
+                    print("⚠️ No se encontró 'Accept Selected Orders' en ningún select")
                 else:
                     await page.wait_for_timeout(500)
-                    # Click en Update
+                    # ── Click en Update ───────────────────────────────────────
                     updated = False
-                    for sel in ['input[value="Update"]', 'button:has-text("Update")', 'input[type="submit"][value="Update"]']:
-                        try:
-                            btn = await page.query_selector(sel)
-                            if btn:
-                                await btn.click()
-                                updated = True
-                                print("✅ Click en Update enviado")
-                                break
-                        except Exception:
-                            pass
+                    for b in all_btns:
+                        val = (await b.get_attribute('value') or '').strip()
+                        txt = (await b.text_content() or '').strip()
+                        if val == 'Update' or txt == 'Update':
+                            await b.click()
+                            updated = True
+                            print(f"✅ Click en Update (value={val!r})")
+                            break
 
                     if updated:
                         await page.wait_for_load_state('networkidle', timeout=30000)
