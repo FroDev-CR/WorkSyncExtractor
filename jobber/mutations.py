@@ -5,9 +5,9 @@ Validadas contra la API version 2025-01-20.
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 
-FIND_CLIENT_QUERY = """
-query FindClient($searchTerm: String!) {
-  clients(filter: { searchTerm: $searchTerm }, first: 5) {
+LIST_CLIENTS_QUERY = """
+query ListClients {
+  clients(first: 100) {
     nodes {
       id
       name

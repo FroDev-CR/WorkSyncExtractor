@@ -303,7 +303,7 @@ if st.session_state.pop("trigger_upload", False):
 
     # Importar aquí para no cargar en cada rerun
     from jobber.mutations import (
-        FIND_CLIENT_QUERY, CREATE_CLIENT_MUTATION,
+        LIST_CLIENTS_QUERY, CREATE_CLIENT_MUTATION,
         FIND_PROPERTY_QUERY, CREATE_PROPERTY_MUTATION,
         CREATE_JOB_MUTATION,
     )
@@ -314,17 +314,18 @@ if st.session_state.pop("trigger_upload", False):
     client_cache   = {}  # nombre → id
     property_cache = {}  # (client_id, address) → property_id
 
+    # Cargar todos los clientes una sola vez al inicio del batch
+    status_text.info("Cargando clientes de Jobber...")
+    all_clients = client.execute(LIST_CLIENTS_QUERY)["data"]["clients"]["nodes"]
+    for node in all_clients:
+        for key in (node.get("name") or "", node.get("companyName") or ""):
+            if key:
+                client_cache[key.lower()] = node["id"]
+
     def get_or_find_client(name: str) -> str:
-        if name in client_cache:
-            return client_cache[name]
-        result = client.execute(FIND_CLIENT_QUERY, {"searchTerm": name})
-        nodes  = result["data"]["clients"]["nodes"]
-        # Buscar coincidencia exacta por nombre o companyName
-        for node in nodes:
-            if (node.get("name") or "").lower() == name.lower() or \
-               (node.get("companyName") or "").lower() == name.lower():
-                client_cache[name] = node["id"]
-                return node["id"]
+        cached = client_cache.get(name.lower())
+        if cached:
+            return cached
         # No encontrado — crear
         res2 = client.execute(CREATE_CLIENT_MUTATION, {
             "input": {"companyName": name, "isCompany": True}
