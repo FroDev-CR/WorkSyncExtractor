@@ -352,13 +352,15 @@ if st.session_state.pop("trigger_upload", False):
         # Crear nueva property
         addr_input = parse_address(address)
         res2 = client.execute(CREATE_PROPERTY_MUTATION, {
-            "clientId": client_id,
-            "address":  addr_input,
+            "input": {
+                "clientId": client_id,
+                "address":  addr_input,
+            }
         })
         errors = res2["data"]["propertyCreate"]["userErrors"]
         if errors:
             raise Exception(f"Error creando property: {errors[0]['message']}")
-        new_id = res2["data"]["propertyCreate"]["property"]["id"]
+        new_id = res2["data"]["propertyCreate"]["properties"][0]["id"]
         property_cache[cache_key] = new_id
         return new_id
 

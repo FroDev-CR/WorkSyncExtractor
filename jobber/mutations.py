@@ -57,12 +57,12 @@ query FindProperty($clientId: EncodedId!) {
 """
 
 CREATE_PROPERTY_MUTATION = """
-mutation PropertyCreate($clientId: EncodedId!, $address: PropertyAddressInput!) {
-  propertyCreate(clientId: $clientId, address: $address) {
-    property {
+mutation PropertyCreate($input: PropertyCreateInput!) {
+  propertyCreate(input: $input) {
+    properties {
       id
       address {
-        street1
+        street
         city
       }
     }

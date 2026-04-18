@@ -42,7 +42,7 @@ def parse_address(raw: str) -> dict:
         postal    = state_zip[1] if len(state_zip) > 1 else ""
 
     return {
-        "street1":    street1,
+        "street":     street1,
         "city":       city,
         "province":   province,
         "postalCode": postal,
