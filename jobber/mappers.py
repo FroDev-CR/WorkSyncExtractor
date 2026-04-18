@@ -110,7 +110,11 @@ def map_row_to_job_input(row: dict, property_id: str) -> dict:
     }
 
     if start_date:
-        attributes["timeframe"] = {"startAt": start_date}
+        attributes["timeframe"]  = {"startAt": start_date}
+        attributes["scheduling"] = {
+            "createVisits": True,
+            "notifyTeam":   False,
+        }
 
     return attributes
 
