@@ -189,23 +189,34 @@ class QBOClient:
     # ── Custom Fields ─────────────────────────────────────────────────────────
 
     def get_custom_field_ids(self) -> dict:
-        """Discovers custom field DefinitionIds from an existing invoice."""
+        """Reads custom field DefinitionIds from QBO Preferences (reliable, no invoice needed)."""
         if self._custom_field_ids is not None:
             return self._custom_field_ids
 
-        invoices = self.query("SELECT * FROM Invoice ORDERBY MetaData.LastUpdatedTime DESC MAXRESULTS 5")
+        resp = requests.get(
+            self._url("preferences"),
+            params={"minorversion": MINOR_VERSION},
+            headers=self._headers(),
+            timeout=30,
+        )
+        if resp.status_code == 401:
+            raise QBOAuthError("Token QBO inválido. Reconecta QBO.")
+        resp.raise_for_status()
+
+        prefs        = resp.json().get("Preferences", {})
+        sales_prefs  = prefs.get("SalesFormsPrefs", {})
+        custom_fields = sales_prefs.get("CustomField", [])
+
         mapping = {}
-        for inv in invoices:
-            for f in inv.get("CustomField", []):
-                name = f.get("Name", "")
-                def_id = f.get("DefinitionId", "")
-                if name and def_id and name not in mapping:
-                    mapping[name] = def_id
-            if len(mapping) >= 3:
-                break
+        for f in custom_fields:
+            name   = f.get("Name", "")
+            def_id = f.get("DefinitionId", "")
+            # BooleanValue=True means the field is enabled in this company
+            if name and def_id and f.get("BooleanValue"):
+                mapping[name] = def_id
 
         self._custom_field_ids = mapping
-        _logger.info("QBO: custom fields descubiertos: %s", mapping)
+        _logger.info("QBO: custom fields desde Preferences: %s", mapping)
         return mapping
 
     # ── Sales Terms ───────────────────────────────────────────────────────────
