@@ -59,6 +59,10 @@ SHINE_CLIENT_MAP = {
 # Requerido por transformer.py (no se usa en modo ShineAndBright)
 APEX_INSTRUCTION_REGEX = []
 
+# Credenciales QuickBooks Online
+QBO_CLIENT_ID     = _secret("QBO_CLIENT_ID",     "QBO_CLIENT_ID")
+QBO_CLIENT_SECRET = _secret("QBO_CLIENT_SECRET", "QBO_CLIENT_SECRET")
+
 SHINE_SUBDIVISION_MAP = {
     "5536 Lakeside Glen Lake Series 40s": "Lakeside Glen 40s",
     "5537 Lakeside Glen Lake Series 50s": "Lakeside Glen 50s",
