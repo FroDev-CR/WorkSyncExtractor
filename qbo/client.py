@@ -123,11 +123,11 @@ class QBOClient:
         return results
 
     def create_customer(self, display_name: str, parent_id: str = "") -> dict:
-        body: dict = {"DisplayName": display_name, "CompanyName": display_name}
+        body: dict = {"DisplayName": display_name}
         if parent_id:
             body["Job"] = True
             body["ParentRef"] = {"value": parent_id}
-            body["BillParent"] = True
+            body["BillWithParent"] = True
         return self.create("Customer", body)
 
     def get_or_create_parent_customer(self, builder_name: str) -> str:

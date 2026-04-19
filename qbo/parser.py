@@ -1,6 +1,7 @@
 """
 Parser del Jobber Visits Report para generar facturas en QBO.
 """
+import math
 import pandas as pd
 from datetime import datetime
 
@@ -23,7 +24,7 @@ def parse_visits_csv(df: pd.DataFrame) -> list[dict]:
             amount = float(row.get("One-off job ($)") or 0)
         except (ValueError, TypeError):
             continue
-        if amount <= 0:
+        if math.isnan(amount) or amount <= 0:
             continue
 
         title    = str(row.get("Visit title", "") or "").strip()
