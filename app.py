@@ -57,7 +57,7 @@ MOBILE_CSS = """
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="ShineAndBright — SupplyPro",
+    page_title="WorkSync - Shine And Bright",
     page_icon="✨",
     layout="wide",
 )

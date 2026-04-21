@@ -1,8 +1,8 @@
 STRINGS = {
     # Page
-    "page_title": "ShineAndBright — SupplyPro",
+    "page_title": "WorkSync - Shine And Bright",
     # Header
-    "app_title": "✨ ShineAndBright — SupplyPro",
+    "app_title": "✨ WorkSync - Shine And Bright",
     "app_subtitle": "Automatic order extraction",
     # Main button
     "btn_export": "🚀 Export SupplyPro Orders",
