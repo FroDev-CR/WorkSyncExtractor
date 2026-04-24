@@ -869,14 +869,21 @@ if not qbo_storage.has_tokens():
 else:
     with st.expander("🔍 Debug — Campos personalizados QBO"):
         try:
+            import requests as _req
             _qbo_dbg = QBOClient()
-            _cf = _qbo_dbg.get_custom_field_ids()
-            if _cf:
-                st.json(_cf)
-            else:
-                st.warning("No se encontraron custom fields en QBO Preferences.")
+            _resp = _req.get(
+                _qbo_dbg._url("preferences"),
+                params={"minorversion": "75"},
+                headers=_qbo_dbg._headers(),
+                timeout=30,
+            )
+            _prefs_raw = _resp.json().get("Preferences", {})
+            st.caption("SalesFormsPrefs completo:")
+            st.json(_prefs_raw.get("SalesFormsPrefs", {}))
+            st.caption("Mapping procesado (get_custom_field_ids):")
+            st.json(_qbo_dbg.get_custom_field_ids())
         except Exception as _e:
-            st.error(f"Error al leer custom fields: {_e}")
+            st.error(f"Error: {_e}")
 
     uploaded_csv = st.file_uploader(
         t("qbo_upload_label"),
