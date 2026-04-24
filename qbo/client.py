@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from qbo import storage
 from qbo import oauth as qbo_oauth
 import logger as _log
+from config import SERVICE_ABBREV_MAP
 
 _logger = _log.get(__name__)
 
@@ -143,19 +144,51 @@ class QBOClient:
         _logger.info("QBO: cliente creado — %s (id=%s)", builder_name, result["Id"])
         return result["Id"]
 
-    def get_or_create_sub_customer(self, community_name: str, parent_id: str) -> str:
+    def _find_sub_by_lot(self, lot: str, parent_id: str) -> str | None:
+        """Search QBO for a sub-customer containing this lot number under the given parent."""
+        lot_stripped = lot.lstrip("0") or lot  # "00142" → "142", but keep "0" if all zeros
+        candidates = {lot, lot_stripped}
+        for search_lot in candidates:
+            if not search_lot:
+                continue
+            safe = search_lot.replace("'", "\\'")
+            results = self.query(
+                f"SELECT * FROM Customer WHERE DisplayName LIKE '%LOT {safe}' MAXRESULTS 20"
+            )
+            for r in results:
+                if (r.get("ParentRef") or {}).get("value") == parent_id:
+                    return r["Id"]
+        return None
+
+    def get_or_create_sub_customer(self, community_name: str, lot: str, parent_id: str) -> str:
+        sub_name = f"{community_name.upper()} LOT {lot}" if lot else community_name
+
+        # 1. Exact match on preferred name
+        c = self.find_customer_by_name(sub_name)
+        if c:
+            return c["Id"]
+
+        # 2. Search by lot number across parent's sub-customers
+        if lot:
+            found_id = self._find_sub_by_lot(lot, parent_id)
+            if found_id:
+                return found_id
+
+        # 3. Exact match on community name alone (legacy entries without lot)
         c = self.find_customer_by_name(community_name)
         if c:
             return c["Id"]
-        result = self.create_customer(community_name, parent_id=parent_id)
-        _logger.info("QBO: sub-cliente creado — %s (id=%s)", community_name, result["Id"])
+
+        # 4. Create new with standard format
+        result = self.create_customer(sub_name, parent_id=parent_id)
+        _logger.info("QBO: sub-cliente creado — %s (id=%s)", sub_name, result["Id"])
         return result["Id"]
 
-    def resolve_customer_id(self, builder: str, community: str) -> str:
+    def resolve_customer_id(self, builder: str, community: str, lot: str = "") -> str:
         """Returns the QBO customer ID to use for the invoice."""
         parent_id = self.get_or_create_parent_customer(builder)
         if community:
-            return self.get_or_create_sub_customer(community, parent_id)
+            return self.get_or_create_sub_customer(community, lot, parent_id)
         return parent_id
 
     # ── Items (Products & Services) ───────────────────────────────────────────
@@ -213,7 +246,7 @@ class QBOClient:
             def_id = f.get("DefinitionId", "")
             # BooleanValue=True means the field is enabled in this company
             if name and def_id and f.get("BooleanValue"):
-                mapping[name] = def_id
+                mapping[name.upper().strip()] = def_id
 
         self._custom_field_ids = mapping
         _logger.info("QBO: custom fields desde Preferences: %s", mapping)
@@ -242,10 +275,15 @@ class QBOClient:
         amount: float,
         service_type: str,
         order_number: str,
+        cleaner: str = "",
     ) -> dict:
         item_id   = self.get_or_create_item(service_type)
         cf_ids    = self.get_custom_field_ids()
         term_id   = self.get_net15_term_id()
+
+        # Memo: abbreviation + cleaner first name  (e.g. "RRC YADIRA")
+        abbrev = SERVICE_ABBREV_MAP.get(service_type.upper(), service_type)
+        memo   = f"{abbrev} {cleaner}".strip() if cleaner else abbrev
 
         # Due date = txn_date + 15 days
         from datetime import date
@@ -256,7 +294,7 @@ class QBOClient:
             "CustomerRef": {"value": customer_id},
             "TxnDate":     txn_date,
             "DueDate":     due,
-            "PrivateNote": service_type,
+            "PrivateNote": memo,
             "Line": [{
                 "Amount":     round(amount, 2),
                 "DetailType": "SalesItemLineDetail",
@@ -272,7 +310,7 @@ class QBOClient:
         if term_id:
             body["SalesTermRef"] = {"value": term_id}
 
-        # Build custom fields from discovered IDs
+        # Build custom fields — keys normalized to UPPER for reliable lookup
         custom_fields = []
         cf_map = {
             "ORDER NUMBER":  order_number,
@@ -280,7 +318,7 @@ class QBOClient:
             "NOTAS":         "",
         }
         for field_name, field_value in cf_map.items():
-            def_id = cf_ids.get(field_name)
+            def_id = cf_ids.get(field_name.upper().strip())
             if def_id:
                 custom_fields.append({
                     "DefinitionId": def_id,

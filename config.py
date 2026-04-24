@@ -63,6 +63,19 @@ APEX_INSTRUCTION_REGEX = []
 QBO_CLIENT_ID     = _secret("QBO_CLIENT_ID",     "QBO_CLIENT_ID")
 QBO_CLIENT_SECRET = _secret("QBO_CLIENT_SECRET", "QBO_CLIENT_SECRET")
 
+SERVICE_ABBREV_MAP = {
+    "ROUGH CLEAN":    "RC",
+    "ROUGH RECLEAN":  "RRC",
+    "FINAL CLEAN":    "FC",
+    "RECLEAN":        "RC",
+    "FIRST WASH":     "PW",
+    "REWASH":         "RW",
+    "QA CLEAN":       "QA",
+    "TLC RECLEAN":    "TLC",
+    "BRICK CLEAN":    "BC",
+    "TOUCH UP":       "TU",
+}
+
 SHINE_SUBDIVISION_MAP = {
     "5536 Lakeside Glen Lake Series 40s": "Lakeside Glen 40s",
     "5537 Lakeside Glen Lake Series 50s": "Lakeside Glen 50s",

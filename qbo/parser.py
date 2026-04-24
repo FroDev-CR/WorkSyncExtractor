@@ -41,14 +41,20 @@ def parse_visits_csv(df: pd.DataFrame) -> list[dict]:
         if not order_number and order_num_col not in ("", "INVOICE"):
             order_number = order_num_col
 
+        # cleaner: first word of "Assigned to" column, uppercased
+        assigned = str(row.get("Assigned to", "") or "").strip()
+        cleaner  = assigned.split()[0].upper() if assigned else ""
+
         rows.append({
             "title":        title,
             "builder":      parsed["builder"],
             "service_type": parsed["service_type"],
             "community":    parsed["community"],
+            "lot":          parsed["lot"],
             "order_number": order_number,
             "amount":       amount,
             "txn_date":     txn_date,
+            "cleaner":      cleaner,
         })
 
     return rows
@@ -58,7 +64,7 @@ def _parse_visit_title(title: str) -> dict | None:
     """
     Parse: 'Builder - SERVICE TYPE / LOT xxx / Community / order-number'
 
-    Returns dict with keys: builder, service_type, community, order_number
+    Returns dict with keys: builder, service_type, community, lot, order_number
     """
     if not title:
         return None
@@ -75,6 +81,13 @@ def _parse_visit_title(title: str) -> dict | None:
     builder      = " - ".join(parts[:-1])
 
     rest = segments[1:]  # Everything after the first segment
+
+    # Extract lot number from first rest segment if it starts with "LOT"
+    lot = ""
+    if rest and rest[0].upper().startswith("LOT"):
+        lot_parts = rest[0].split()
+        if len(lot_parts) >= 2:
+            lot = lot_parts[1]
 
     community    = ""
     order_number = ""
@@ -95,6 +108,7 @@ def _parse_visit_title(title: str) -> dict | None:
         "builder":      builder,
         "service_type": service_type,
         "community":    community,
+        "lot":          lot,
         "order_number": order_number,
     }
 

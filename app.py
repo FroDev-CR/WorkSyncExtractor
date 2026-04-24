@@ -38,19 +38,341 @@ from qbo import storage as qbo_storage, oauth as qbo_oauth
 from qbo.client import QBOClient, QBOAuthError
 from qbo.parser import parse_visits_csv
 
-# ── CSS responsive ────────────────────────────────────────────────────────────
-MOBILE_CSS = """
+# ── CSS ───────────────────────────────────────────────────────────────────────
+APP_CSS = """
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Rubik:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+
+/* === TOKENS === */
+:root {
+  --ws-accent:        #00C2FF;
+  --ws-accent-dark:   #009FD4;
+  --ws-accent-glow:   rgba(0,194,255,0.18);
+  --ws-sidebar:       #0C1628;
+  --ws-sidebar-hi:    rgba(255,255,255,0.07);
+  --ws-sidebar-text:  #BDD0E8;
+  --ws-sidebar-muted: #5A748E;
+  --ws-surface:       #F7F9FC;
+  --ws-surface-2:     #EDF1F7;
+  --ws-white:         #FFFFFF;
+  --ws-text:          #111827;
+  --ws-text-2:        #374151;
+  --ws-muted:         #6B7280;
+  --ws-border:        #E2E8F0;
+  --ws-border-2:      #CBD5E1;
+  --ws-success:       #059669;
+  --ws-success-bg:    rgba(5,150,105,0.08);
+  --ws-error:         #DC2626;
+  --ws-error-bg:      rgba(220,38,38,0.07);
+  --ws-warn:          #D97706;
+  --ws-warn-bg:       rgba(217,119,6,0.08);
+  --ws-info-bg:       rgba(0,194,255,0.07);
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+  --sh-xs: 0 1px 3px rgba(15,23,42,0.07),0 1px 2px rgba(15,23,42,0.04);
+  --sh-sm: 0 2px 8px rgba(15,23,42,0.08),0 1px 3px rgba(15,23,42,0.05);
+  --sh-md: 0 4px 16px rgba(15,23,42,0.1),0 2px 6px rgba(15,23,42,0.06);
+}
+
+/* === BASE === */
+html, body, .stApp {
+  font-family: 'Rubik', -apple-system, sans-serif !important;
+}
+#MainMenu, footer, [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+  display: none !important;
+}
+
+/* === SIDEBAR === */
+[data-testid="stSidebar"] {
+  background-color: var(--ws-sidebar) !important;
+  border-right: 1px solid rgba(255,255,255,0.05) !important;
+}
+[data-testid="stSidebar"] > div:first-child {
+  padding-top: 1.75rem !important;
+}
+
+/* Sidebar text */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div:not([data-testid]) > span {
+  color: var(--ws-sidebar-text) !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+  font-family: 'Sora', sans-serif !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2 {
+  font-size: 0.95rem !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 0.5rem !important;
+}
+[data-testid="stSidebar"] .stCaption > p {
+  color: var(--ws-sidebar-muted) !important;
+  font-size: 0.69rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+}
+
+/* Sidebar hr */
+[data-testid="stSidebar"] hr {
+  border-color: rgba(255,255,255,0.07) !important;
+  margin: 1.1rem 0 !important;
+}
+
+/* Sidebar alerts */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+  background-color: rgba(5,150,105,0.14) !important;
+  border: 1px solid rgba(5,150,105,0.28) !important;
+  border-radius: var(--r-sm) !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"][data-baseweb="notification"][kind="info"] {
+  background-color: rgba(0,194,255,0.1) !important;
+  border-color: rgba(0,194,255,0.22) !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"] p {
+  color: #A7F3D0 !important;
+  font-size: 0.8rem !important;
+}
+
+/* Sidebar buttons */
+[data-testid="stSidebar"] .stButton > button {
+  background-color: rgba(255,255,255,0.06) !important;
+  color: var(--ws-sidebar-text) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: var(--r-sm) !important;
+  font-family: 'Rubik', sans-serif !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  transition: background 140ms ease, border-color 140ms ease !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+  background-color: var(--ws-sidebar-hi) !important;
+  border-color: rgba(0,194,255,0.3) !important;
+  color: #FFFFFF !important;
+}
+
+/* Sidebar link buttons (connect) */
+[data-testid="stSidebar"] .stLinkButton > a {
+  background-color: var(--ws-accent) !important;
+  color: #0A1628 !important;
+  border: none !important;
+  border-radius: var(--r-sm) !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  transition: background 140ms ease !important;
+}
+[data-testid="stSidebar"] .stLinkButton > a:hover {
+  background-color: var(--ws-accent-dark) !important;
+}
+
+/* Sidebar radio (lang) */
+[data-testid="stSidebar"] .stRadio label {
+  color: var(--ws-sidebar-text) !important;
+  font-size: 0.82rem !important;
+}
+
+/* === MAIN AREA === */
+[data-testid="stMain"] {
+  background-color: var(--ws-surface) !important;
+}
+[data-testid="stMainBlockContainer"] {
+  padding-top: 2.25rem !important;
+  padding-bottom: 3.5rem !important;
+}
+
+/* === TYPOGRAPHY (main) === */
+[data-testid="stMain"] h1 {
+  font-family: 'Sora', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 1.9rem !important;
+  letter-spacing: -0.025em !important;
+  color: var(--ws-text) !important;
+  line-height: 1.2 !important;
+}
+[data-testid="stMain"] h2 {
+  font-family: 'Sora', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 1.25rem !important;
+  letter-spacing: -0.015em !important;
+  color: var(--ws-text) !important;
+}
+[data-testid="stMain"] h3 {
+  font-family: 'Sora', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  letter-spacing: -0.01em !important;
+  color: var(--ws-text-2) !important;
+}
+[data-testid="stMain"] p {
+  font-family: 'Rubik', sans-serif !important;
+  color: var(--ws-text) !important;
+  line-height: 1.65 !important;
+}
+[data-testid="stMain"] .stCaption > p {
+  color: var(--ws-muted) !important;
+  font-size: 0.8125rem !important;
+}
+hr { border: none !important; border-top: 1px solid var(--ws-border) !important; margin: 1.75rem 0 !important; }
+
+/* === BUTTONS (main) === */
+.stButton > button {
+  font-family: 'Rubik', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  border-radius: var(--r-sm) !important;
+  border: 1px solid var(--ws-border) !important;
+  background-color: var(--ws-white) !important;
+  color: var(--ws-text) !important;
+  padding: 0.45rem 1.1rem !important;
+  box-shadow: var(--sh-xs) !important;
+  transition: box-shadow 140ms ease, transform 120ms ease, border-color 140ms ease !important;
+}
+.stButton > button:hover {
+  background-color: var(--ws-surface-2) !important;
+  border-color: var(--ws-border-2) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--sh-sm) !important;
+}
+.stButton > button:active { transform: translateY(0) !important; }
+
+/* Primary button */
+.stButton > button[kind="primary"] {
+  background-color: var(--ws-accent) !important;
+  color: #071525 !important;
+  border-color: transparent !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+.stButton > button[kind="primary"]:hover {
+  background-color: var(--ws-accent-dark) !important;
+  box-shadow: 0 0 0 3px var(--ws-accent-glow), var(--sh-sm) !important;
+}
+
+/* Download buttons */
+.stDownloadButton > button {
+  font-family: 'Rubik', sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: var(--r-sm) !important;
+  border: 1px solid var(--ws-border) !important;
+  background-color: var(--ws-white) !important;
+  box-shadow: var(--sh-xs) !important;
+  transition: all 140ms ease !important;
+}
+.stDownloadButton > button:hover {
+  border-color: var(--ws-accent) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* === METRICS === */
+[data-testid="stMetric"] {
+  background-color: var(--ws-white) !important;
+  border: 1px solid var(--ws-border) !important;
+  border-radius: var(--r-lg) !important;
+  padding: 1.25rem 1.5rem !important;
+  box-shadow: var(--sh-xs) !important;
+  transition: box-shadow 200ms ease !important;
+}
+[data-testid="stMetric"]:hover { box-shadow: var(--sh-sm) !important; }
+[data-testid="stMetricLabel"] > div {
+  font-family: 'Rubik', sans-serif !important;
+  font-size: 0.675rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+  color: var(--ws-muted) !important;
+}
+[data-testid="stMetricValue"] > div {
+  font-family: 'Sora', sans-serif !important;
+  font-size: 1.8rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+  color: var(--ws-text) !important;
+}
+
+/* === ALERTS === */
+[data-testid="stAlert"] {
+  border-radius: var(--r-md) !important;
+  font-family: 'Rubik', sans-serif !important;
+  font-size: 0.875rem !important;
+}
+
+/* === DATA FRAME / EDITOR === */
+[data-testid="stDataFrameContainer"],
+[data-testid="stDataEditorContainer"] {
+  border-radius: var(--r-md) !important;
+  border: 1px solid var(--ws-border) !important;
+  box-shadow: var(--sh-xs) !important;
+  overflow: hidden !important;
+}
+
+/* === FILE UPLOADER === */
+[data-testid="stFileUploaderDropzone"] {
+  border: 2px dashed var(--ws-border-2) !important;
+  border-radius: var(--r-md) !important;
+  background-color: rgba(0,194,255,0.03) !important;
+  transition: border-color 140ms ease, background 140ms ease !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+  border-color: var(--ws-accent) !important;
+  background-color: var(--ws-info-bg) !important;
+}
+
+/* === EXPANDER === */
+[data-testid="stExpander"] {
+  border: 1px solid var(--ws-border) !important;
+  border-radius: var(--r-md) !important;
+  background-color: var(--ws-white) !important;
+  box-shadow: var(--sh-xs) !important;
+}
+[data-testid="stExpander"] summary {
+  font-family: 'Rubik', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  color: var(--ws-muted) !important;
+}
+
+/* === PROGRESS BAR === */
+[data-testid="stProgressBar"] > div {
+  background-color: var(--ws-border) !important;
+  border-radius: 99px !important;
+  height: 5px !important;
+  overflow: hidden !important;
+}
+[data-testid="stProgressBar"] > div > div {
+  background-color: var(--ws-accent) !important;
+  border-radius: 99px !important;
+  transition: width 280ms ease-out !important;
+}
+
+/* === TOAST === */
+[data-testid="stToast"] {
+  border-radius: var(--r-md) !important;
+  border: 1px solid var(--ws-border) !important;
+  box-shadow: var(--sh-md) !important;
+  font-family: 'Rubik', sans-serif !important;
+  font-size: 0.875rem !important;
+}
+
+/* === RESPONSIVE === */
 @media (max-width: 640px) {
-    [data-testid="column"] {
-        width: 100% !important;
-        flex: 1 1 100% !important;
-        min-width: 100% !important;
-    }
-    [data-testid="stMetric"] { margin-bottom: 0.5rem; }
+  [data-testid="stMain"] h1 { font-size: 1.5rem !important; }
+  [data-testid="stMetricValue"] > div { font-size: 1.4rem !important; }
+  [data-testid="stMainBlockContainer"] { padding-top: 1.25rem !important; }
+  [data-testid="column"] {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+  }
+  [data-testid="stMetric"] { margin-bottom: 0.5rem; }
 }
 @media (max-width: 768px) {
-    section[data-testid="stSidebar"] { min-width: 200px !important; }
+  section[data-testid="stSidebar"] { min-width: 200px !important; }
 }
 </style>
 """
@@ -61,7 +383,7 @@ st.set_page_config(
     page_icon="✨",
     layout="wide",
 )
-st.markdown(MOBILE_CSS, unsafe_allow_html=True)
+st.markdown(APP_CSS, unsafe_allow_html=True)
 
 # ── Session state defaults ────────────────────────────────────────────────────
 for key, default in [
@@ -614,9 +936,11 @@ if invoice_rows_pending := st.session_state.pop("trigger_qbo_upload", None):
         qbo_prog.progress(i / total_inv)
 
         try:
-            cache_key = f"{row['builder']}||{row['community']}"
+            cache_key = f"{row['builder']}||{row['community']}||{row.get('lot', '')}"
             if cache_key not in _cust_cache:
-                _cust_cache[cache_key] = qbo.resolve_customer_id(row["builder"], row["community"])
+                _cust_cache[cache_key] = qbo.resolve_customer_id(
+                    row["builder"], row["community"], row.get("lot", "")
+                )
             customer_id = _cust_cache[cache_key]
 
             inv = qbo.create_invoice(
@@ -625,6 +949,7 @@ if invoice_rows_pending := st.session_state.pop("trigger_qbo_upload", None):
                 amount=row["amount"],
                 service_type=row["service_type"],
                 order_number=row["order_number"],
+                cleaner=row.get("cleaner", ""),
             )
             qbo_results.append({
                 "title":      row["title"],
