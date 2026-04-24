@@ -248,36 +248,24 @@ class QBOClient:
     # ── Custom Fields ─────────────────────────────────────────────────────────
 
     def get_custom_field_ids(self) -> dict:
-        """Reads custom field DefinitionIds from QBO Preferences (reliable, no invoice needed)."""
+        """Returns custom field DefinitionId mapping for this QBO company.
+
+        QBO assigns sequential DefinitionIds (1, 2, 3) to the three custom
+        field slots. The Preferences API for this account does not return
+        user-defined names/DefinitionIds in its CustomField array, so we
+        use the known field names from the invoice form as a static mapping.
+        """
         if self._custom_field_ids is not None:
             return self._custom_field_ids
 
-        resp = requests.get(
-            self._url("preferences"),
-            params={"minorversion": MINOR_VERSION},
-            headers=self._headers(),
-            timeout=30,
-        )
-        if resp.status_code == 401:
-            raise QBOAuthError("Token QBO inválido. Reconecta QBO.")
-        resp.raise_for_status()
-
-        prefs        = resp.json().get("Preferences", {})
-        sales_prefs  = prefs.get("SalesFormsPrefs", {})
-        custom_fields = sales_prefs.get("CustomField", [])
-
-        mapping = {}
-        for f in custom_fields:
-            name   = f.get("Name", "")
-            def_id = f.get("DefinitionId", "")
-            # Include all fields that have a name and ID, regardless of BooleanValue.
-            # BooleanValue may be absent in some QBO company configurations.
-            if name and def_id:
-                mapping[name.upper().strip()] = def_id
-
-        self._custom_field_ids = mapping
-        _logger.info("QBO: custom fields desde Preferences (todos): %s", mapping)
-        return mapping
+        # Known custom fields visible in QBO invoice form (in creation order)
+        self._custom_field_ids = {
+            "ORDER NUMBER":  "1",
+            "FECHA ENVIADO": "2",
+            "NOTAS":         "3",
+        }
+        _logger.info("QBO: usando custom field mapping estático: %s", self._custom_field_ids)
+        return self._custom_field_ids
 
     # ── Sales Terms ───────────────────────────────────────────────────────────
 

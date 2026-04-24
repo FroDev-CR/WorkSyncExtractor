@@ -870,15 +870,8 @@ else:
     with st.expander("🔍 Debug — Campos personalizados QBO"):
         try:
             _qbo_dbg = QBOClient()
-            st.caption("CustomField desde invoice reciente:")
-            _invs = _qbo_dbg.query("SELECT * FROM Invoice MAXRESULTS 5")
-            for _inv in _invs:
-                _cfs = _inv.get("CustomField", [])
-                if _cfs:
-                    st.json({"DocNumber": _inv.get("DocNumber"), "CustomField": _cfs})
-                    break
-            else:
-                st.warning("No se encontraron invoices con CustomField.")
+            st.caption("Mapping DefinitionId activo:")
+            st.json(_qbo_dbg.get_custom_field_ids())
         except Exception as _e:
             st.error(f"Error: {_e}")
 
