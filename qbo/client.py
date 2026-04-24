@@ -322,6 +322,7 @@ class QBOClient:
             "TxnDate":     txn_date,
             "DueDate":     due,
             "PrivateNote": memo,
+            "PONumber":    order_number,
             "Line": [{
                 "Amount":     round(amount, 2),
                 "DetailType": "SalesItemLineDetail",
