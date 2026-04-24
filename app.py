@@ -867,6 +867,17 @@ st.caption(t("qbo_upload_hint"))
 if not qbo_storage.has_tokens():
     st.warning(t("qbo_warning_not_connected"))
 else:
+    with st.expander("🔍 Debug — Campos personalizados QBO"):
+        try:
+            _qbo_dbg = QBOClient()
+            _cf = _qbo_dbg.get_custom_field_ids()
+            if _cf:
+                st.json(_cf)
+            else:
+                st.warning("No se encontraron custom fields en QBO Preferences.")
+        except Exception as _e:
+            st.error(f"Error al leer custom fields: {_e}")
+
     uploaded_csv = st.file_uploader(
         t("qbo_upload_label"),
         type=["csv"],
@@ -900,18 +911,6 @@ else:
                 for r in invoice_rows
             ])
             st.dataframe(preview_df, use_container_width=True, hide_index=True)
-
-            # Debug: mostrar campos personalizados de QBO para diagnóstico
-            with st.expander("🔍 Debug — Campos personalizados QBO"):
-                try:
-                    _qbo_dbg = QBOClient()
-                    _cf = _qbo_dbg.get_custom_field_ids()
-                    if _cf:
-                        st.json(_cf)
-                    else:
-                        st.warning("No se encontraron custom fields en QBO Preferences.")
-                except Exception as _e:
-                    st.error(f"Error al leer custom fields: {_e}")
 
             if st.button(
                 t("btn_create_invoices", n=len(invoice_rows)),
