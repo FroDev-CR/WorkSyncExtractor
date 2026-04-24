@@ -145,11 +145,32 @@ class QBOClient:
         return result["Id"]
 
     def _get_sub_customers(self, parent_id: str) -> list:
-        """Fetch all sub-customers of parent from QBO."""
-        safe = parent_id.replace("'", "\\'")
+        """Fetch all sub-customers of parent via FullyQualifiedName LIKE query.
+
+        QBO IDS does not support WHERE ParentRef filter, so we look up the
+        parent's DisplayName via REST and use FullyQualifiedName LIKE instead.
+        """
+        resp = requests.get(
+            self._url(f"customer/{parent_id}"),
+            params={"minorversion": MINOR_VERSION},
+            headers=self._headers(),
+            timeout=30,
+        )
+        if not resp.ok:
+            _logger.warning("QBO: no se pudo obtener cliente parent %s (%s)", parent_id, resp.status_code)
+            return []
+        parent_display = resp.json().get("Customer", {}).get("DisplayName", "")
+        if not parent_display:
+            return []
+        safe = parent_display.replace("'", "\\'")
         try:
-            return self.query(f"SELECT * FROM Customer WHERE ParentRef = '{safe}' MAXRESULTS 200")
-        except Exception:
+            results = self.query(
+                f"SELECT * FROM Customer WHERE FullyQualifiedName LIKE '{safe}:%' MAXRESULTS 200"
+            )
+            _logger.info("QBO: sub-clientes de '%s': %d encontrados", parent_display, len(results))
+            return results
+        except Exception as e:
+            _logger.warning("QBO: _get_sub_customers error: %s", e)
             return []
 
     def _find_sub_by_lot(self, subs: list, lot: str) -> str | None:
