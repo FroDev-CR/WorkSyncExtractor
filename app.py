@@ -891,12 +891,27 @@ else:
                 {
                     t("qbo_col_title"):    r["title"],
                     t("qbo_col_customer"): f"{r['builder']} / {r['community']}" if r["community"] else r["builder"],
+                    "LOT":                 r.get("lot", ""),
+                    "Order #":             r.get("order_number", ""),
+                    "Cleaner":             r.get("cleaner", ""),
                     t("qbo_col_amount"):   f"${r['amount']:,.2f}",
                     "Fecha":               r["txn_date"],
                 }
                 for r in invoice_rows
             ])
             st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+            # Debug: mostrar campos personalizados de QBO para diagnóstico
+            with st.expander("🔍 Debug — Campos personalizados QBO"):
+                try:
+                    _qbo_dbg = QBOClient()
+                    _cf = _qbo_dbg.get_custom_field_ids()
+                    if _cf:
+                        st.json(_cf)
+                    else:
+                        st.warning("No se encontraron custom fields en QBO Preferences.")
+                except Exception as _e:
+                    st.error(f"Error al leer custom fields: {_e}")
 
             if st.button(
                 t("btn_create_invoices", n=len(invoice_rows)),
