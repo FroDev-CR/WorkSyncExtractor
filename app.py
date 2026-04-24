@@ -40,8 +40,8 @@ from qbo.parser import parse_visits_csv
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 APP_CSS = """
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Rubik:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Rubik:wght@300;400;500&display=swap');
 
 /* === TOKENS === */
 :root {
