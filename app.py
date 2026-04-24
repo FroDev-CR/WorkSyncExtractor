@@ -869,19 +869,16 @@ if not qbo_storage.has_tokens():
 else:
     with st.expander("🔍 Debug — Campos personalizados QBO"):
         try:
-            import requests as _req
             _qbo_dbg = QBOClient()
-            _resp = _req.get(
-                _qbo_dbg._url("preferences"),
-                params={"minorversion": "75"},
-                headers=_qbo_dbg._headers(),
-                timeout=30,
-            )
-            _prefs_raw = _resp.json().get("Preferences", {})
-            st.caption("SalesFormsPrefs completo:")
-            st.json(_prefs_raw.get("SalesFormsPrefs", {}))
-            st.caption("Mapping procesado (get_custom_field_ids):")
-            st.json(_qbo_dbg.get_custom_field_ids())
+            st.caption("CustomField desde invoice reciente:")
+            _invs = _qbo_dbg.query("SELECT * FROM Invoice MAXRESULTS 5")
+            for _inv in _invs:
+                _cfs = _inv.get("CustomField", [])
+                if _cfs:
+                    st.json({"DocNumber": _inv.get("DocNumber"), "CustomField": _cfs})
+                    break
+            else:
+                st.warning("No se encontraron invoices con CustomField.")
         except Exception as _e:
             st.error(f"Error: {_e}")
 
