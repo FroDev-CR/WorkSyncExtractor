@@ -144,20 +144,24 @@ class QBOClient:
         _logger.info("QBO: cliente creado — %s (id=%s)", builder_name, result["Id"])
         return result["Id"]
 
-    def _find_sub_by_lot(self, lot: str, parent_id: str) -> str | None:
-        """Search QBO for a sub-customer containing this lot number under the given parent."""
-        lot_stripped = lot.lstrip("0") or lot  # "00142" → "142", but keep "0" if all zeros
-        candidates = {lot, lot_stripped}
-        for search_lot in candidates:
-            if not search_lot:
-                continue
-            safe = search_lot.replace("'", "\\'")
-            results = self.query(
-                f"SELECT * FROM Customer WHERE DisplayName LIKE '%LOT {safe}' MAXRESULTS 20"
-            )
-            for r in results:
-                if (r.get("ParentRef") or {}).get("value") == parent_id:
-                    return r["Id"]
+    def _get_sub_customers(self, parent_id: str) -> list:
+        """Fetch all sub-customers of parent from QBO."""
+        safe = parent_id.replace("'", "\\'")
+        try:
+            return self.query(f"SELECT * FROM Customer WHERE ParentRef = '{safe}' MAXRESULTS 200")
+        except Exception:
+            return []
+
+    def _find_sub_by_lot(self, subs: list, lot: str) -> str | None:
+        """Search sub-customer list locally for one whose DisplayName contains this LOT number."""
+        lot_stripped = lot.lstrip("0") or lot
+        candidates = [lot_stripped, lot] if lot_stripped != lot else [lot]
+        for sc in subs:
+            disp = (sc.get("DisplayName") or "").upper()
+            for search_lot in candidates:
+                if search_lot and f"LOT {search_lot}" in disp:
+                    _logger.info("QBO: sub-cliente encontrado por LOT %s → %s", lot, sc.get("DisplayName"))
+                    return sc["Id"]
         return None
 
     def get_or_create_sub_customer(self, community_name: str, lot: str, parent_id: str) -> str:
@@ -168,9 +172,10 @@ class QBOClient:
         if c:
             return c["Id"]
 
-        # 2. Search by lot number across parent's sub-customers
+        # 2. Fetch all sub-customers of this parent, search locally by LOT number
         if lot:
-            found_id = self._find_sub_by_lot(lot, parent_id)
+            subs = self._get_sub_customers(parent_id)
+            found_id = self._find_sub_by_lot(subs, lot)
             if found_id:
                 return found_id
 
@@ -244,12 +249,13 @@ class QBOClient:
         for f in custom_fields:
             name   = f.get("Name", "")
             def_id = f.get("DefinitionId", "")
-            # BooleanValue=True means the field is enabled in this company
-            if name and def_id and f.get("BooleanValue"):
+            # Include all fields that have a name and ID, regardless of BooleanValue.
+            # BooleanValue may be absent in some QBO company configurations.
+            if name and def_id:
                 mapping[name.upper().strip()] = def_id
 
         self._custom_field_ids = mapping
-        _logger.info("QBO: custom fields desde Preferences: %s", mapping)
+        _logger.info("QBO: custom fields desde Preferences (todos): %s", mapping)
         return mapping
 
     # ── Sales Terms ───────────────────────────────────────────────────────────

@@ -75,6 +75,18 @@ SERVICE_ABBREV_MAP = {
     "BRICK CLEAN":    "BC",
     "TOUCH UP":       "TU",
 }
+# Auto-add original SupplyPro names so Jobber visit titles with un-normalized
+# service names (e.g. "Celebration Walk Clean") still get the right abbreviation.
+# This runs after both maps are defined.
+def _build_extended_abbrev():
+    for _orig, _norm in SHINE_TASK_MAP.items():
+        key = _orig.upper()
+        if key not in SERVICE_ABBREV_MAP:
+            abbrev = SERVICE_ABBREV_MAP.get(_norm.upper())
+            if abbrev:
+                SERVICE_ABBREV_MAP[key] = abbrev
+_build_extended_abbrev()
+del _build_extended_abbrev
 
 SHINE_SUBDIVISION_MAP = {
     "5536 Lakeside Glen Lake Series 40s": "Lakeside Glen 40s",
