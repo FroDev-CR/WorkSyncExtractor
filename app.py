@@ -870,7 +870,29 @@ else:
     with st.expander("🔍 Debug — Campos personalizados QBO"):
         try:
             _qbo_dbg = QBOClient()
-            st.caption("Mapping DefinitionId activo:")
+
+            st.caption("Query CustomFieldDefinition (NEW custom fields):")
+            try:
+                _defs = _qbo_dbg.query("SELECT * FROM CustomFieldDefinition")
+                st.json(_defs)
+            except Exception as _q_err:
+                st.warning(f"Query falló: {_q_err}")
+
+            st.caption("GET /customfielddefinition (REST):")
+            try:
+                import requests as _req
+                _resp = _req.get(
+                    _qbo_dbg._url("customfielddefinition"),
+                    params={"minorversion": "75"},
+                    headers=_qbo_dbg._headers(),
+                    timeout=30,
+                )
+                st.write(f"Status: {_resp.status_code}")
+                st.json(_resp.json())
+            except Exception as _r_err:
+                st.warning(f"REST falló: {_r_err}")
+
+            st.caption("Mapping estático actual:")
             st.json(_qbo_dbg.get_custom_field_ids())
         except Exception as _e:
             st.error(f"Error: {_e}")
