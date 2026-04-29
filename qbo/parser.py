@@ -6,34 +6,46 @@ import pandas as pd
 from datetime import datetime
 
 
-def parse_visits_csv(df: pd.DataFrame) -> list[dict]:
+def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     """
     Filtra y convierte las filas del Visits Report en dicts listos para create_invoice.
+
+    Returns (parsed_rows, skipped_rows).
+    skipped_rows: list of {title, reason} for debugging.
 
     Filas excluidas:
     - ORDER NUMBER (columna) == 'EPO'
     - One-off job ($) vacío o <= 0
+    - Visit title no parseable
+    - Fecha no parseable
     """
     rows = []
+    skipped = []
     for _, row in df.iterrows():
+        title = str(row.get("Visit title", "") or "").strip()
         order_num_col = str(row.get("ORDER NUMBER", "") or "").strip().upper()
+
         if order_num_col == "EPO":
+            skipped.append({"title": title, "reason": "EPO"})
             continue
 
         try:
             amount = float(row.get("One-off job ($)") or 0)
         except (ValueError, TypeError):
+            skipped.append({"title": title, "reason": "monto inválido"})
             continue
         if math.isnan(amount) or amount <= 0:
+            skipped.append({"title": title, "reason": f"monto vacío o ≤ 0 ({row.get('One-off job ($)')})"})
             continue
 
-        title    = str(row.get("Visit title", "") or "").strip()
-        parsed   = _parse_visit_title(title)
+        parsed = _parse_visit_title(title)
         if not parsed:
+            skipped.append({"title": title, "reason": "título no parseable (falta ' - ')"})
             continue
 
         txn_date = _parse_date(str(row.get("Date", "") or "").strip())
         if not txn_date:
+            skipped.append({"title": title, "reason": f"fecha no parseable ({row.get('Date')})"})
             continue
 
         # order_number: prefer from title, fall back to ORDER NUMBER column
@@ -57,7 +69,7 @@ def parse_visits_csv(df: pd.DataFrame) -> list[dict]:
             "cleaner":      cleaner,
         })
 
-    return rows
+    return rows, skipped
 
 
 def _parse_visit_title(title: str) -> dict | None:

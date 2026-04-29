@@ -910,10 +910,10 @@ else:
             df_visits["One-off job ($)"] = pd.to_numeric(
                 df_visits.get("One-off job ($)", pd.Series(dtype=str)), errors="coerce"
             )
-            invoice_rows = parse_visits_csv(df_visits)
+            invoice_rows, skipped_rows = parse_visits_csv(df_visits)
         except Exception as parse_err:
             st.error(f"Error leyendo el CSV: {parse_err}")
-            invoice_rows = []
+            invoice_rows, skipped_rows = [], []
 
         if invoice_rows:
             st.markdown(t("qbo_preview_title", n=len(invoice_rows)))
@@ -931,6 +931,14 @@ else:
             ])
             st.dataframe(preview_df, use_container_width=True, hide_index=True)
 
+            if skipped_rows:
+                with st.expander(f"⚠️ {len(skipped_rows)} filas omitidas del CSV"):
+                    st.dataframe(
+                        pd.DataFrame(skipped_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
             if st.button(
                 t("btn_create_invoices", n=len(invoice_rows)),
                 type="primary",
@@ -938,8 +946,11 @@ else:
             ):
                 st.session_state["trigger_qbo_upload"] = invoice_rows
                 st.rerun()
-        elif uploaded_csv is not None:
+        else:
             st.info("No se encontraron facturas válidas en el archivo (sin EPO y con monto > 0).")
+            if skipped_rows:
+                with st.expander(f"⚠️ {len(skipped_rows)} filas omitidas"):
+                    st.dataframe(pd.DataFrame(skipped_rows), use_container_width=True, hide_index=True)
 
 
 # ── Crear facturas QBO (siguiente rerun) ──────────────────────────────────────
