@@ -14,20 +14,17 @@ def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     skipped_rows: list of {title, reason} for debugging.
 
     Filas excluidas:
-    - ORDER NUMBER (columna) == 'EPO'
     - One-off job ($) vacío o <= 0
     - Visit title no parseable
     - Fecha no parseable
+
+    Si ORDER NUMBER (columna) == 'EPO', se usa 'EPO' como order_number.
     """
     rows = []
     skipped = []
     for _, row in df.iterrows():
         title = str(row.get("Visit title", "") or "").strip()
         order_num_col = str(row.get("ORDER NUMBER", "") or "").strip().upper()
-
-        if order_num_col == "EPO":
-            skipped.append({"title": title, "reason": "EPO"})
-            continue
 
         try:
             amount = float(row.get("One-off job ($)") or 0)
@@ -49,8 +46,11 @@ def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             continue
 
         # order_number: prefer from title, fall back to ORDER NUMBER column
+        # Si columna == 'EPO', forzar 'EPO' como order_number
         order_number = parsed["order_number"]
-        if not order_number and order_num_col not in ("", "INVOICE"):
+        if order_num_col == "EPO":
+            order_number = "EPO"
+        elif not order_number and order_num_col not in ("", "INVOICE"):
             order_number = order_num_col
 
         # cleaner: first word of "Assigned to" column, uppercased
