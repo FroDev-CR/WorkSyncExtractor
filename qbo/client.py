@@ -33,6 +33,7 @@ class QBOClient:
         self._item_cache         = {}  # name.lower() → id
         self._custom_field_ids   = None  # {field_name → DefinitionId}
         self._sales_term_net15   = None  # SalesTermRef id for Net 15
+        self._doc_num_counter    = None  # next DocNumber to assign
 
         self._maybe_refresh()
 
@@ -281,6 +282,37 @@ class QBOClient:
                 return t["Id"]
         return None
 
+    # ── DocNumber (Invoice Number) ────────────────────────────────────────────
+
+    def _next_doc_number(self) -> str:
+        """Generate sequential DocNumber. QBO won't auto-assign when
+        CustomTxnNumbers=true, so we query max existing and increment locally.
+        """
+        if self._doc_num_counter is None:
+            try:
+                results = self.query(
+                    "SELECT DocNumber FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS 100"
+                )
+                max_num = 0
+                for inv in results:
+                    doc = str(inv.get("DocNumber", "") or "").strip()
+                    try:
+                        n = int(doc)
+                        if n > max_num:
+                            max_num = n
+                    except (ValueError, TypeError):
+                        continue
+                self._doc_num_counter = max_num + 1 if max_num > 0 else 1001
+                _logger.info("QBO: DocNumber counter inicializado en %d", self._doc_num_counter)
+            except Exception as e:
+                from datetime import datetime as _dt
+                self._doc_num_counter = int(_dt.now().strftime("%y%m%d%H%M"))
+                _logger.warning("QBO: max DocNumber falló (%s). Fallback: %d", e, self._doc_num_counter)
+
+        n = self._doc_num_counter
+        self._doc_num_counter += 1
+        return str(n)
+
     # ── Invoices ──────────────────────────────────────────────────────────────
 
     def create_invoice(
@@ -309,6 +341,7 @@ class QBOClient:
 
         body: dict = {
             "CustomerRef": {"value": customer_id},
+            "DocNumber":   self._next_doc_number(),
             "TxnDate":     txn_date,
             "DueDate":     due,
             "PrivateNote": memo,
