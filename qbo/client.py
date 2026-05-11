@@ -296,9 +296,11 @@ class QBOClient:
         cf_ids    = self.get_custom_field_ids()
         term_id   = self.get_net15_term_id()
 
-        # Memo: abbreviation + cleaner first name  (e.g. "RRC YADIRA")
+        # Memo: abbreviation + cleaner first name + order_number
+        # (e.g. "RRC YADIRA · 39083579-000")
         abbrev = SERVICE_ABBREV_MAP.get(service_type.upper(), service_type)
-        memo   = f"{abbrev} {cleaner}".strip() if cleaner else abbrev
+        base   = f"{abbrev} {cleaner}".strip() if cleaner else abbrev
+        memo   = f"{base} · {order_number}" if order_number else base
 
         # Due date = txn_date + 15 days
         from datetime import date
