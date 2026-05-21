@@ -906,10 +906,7 @@ else:
     if uploaded_csv is not None:
         try:
             df_visits = pd.read_csv(uploaded_csv, dtype=str)
-            # One-off job ($) debe ser numérico
-            df_visits["One-off job ($)"] = pd.to_numeric(
-                df_visits.get("One-off job ($)", pd.Series(dtype=str)), errors="coerce"
-            )
+            # Parser maneja conversión de monto (acepta "$1,234.00", negativos, etc.)
             invoice_rows, skipped_rows = parse_visits_csv(df_visits)
         except Exception as parse_err:
             st.error(f"Error leyendo el CSV: {parse_err}")
