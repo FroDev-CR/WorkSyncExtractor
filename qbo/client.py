@@ -133,6 +133,11 @@ class QBOClient:
         return self.create("Customer", body)
 
     def get_or_create_parent_customer(self, builder_name: str) -> str:
+        import re
+        builder_name = re.sub(r"\s+", " ", builder_name or "").strip()
+        if not builder_name:
+            raise ValueError("builder_name vacío")
+
         # Exact match first
         c = self.find_customer_by_name(builder_name)
         if c and not c.get("Job"):
@@ -141,6 +146,27 @@ class QBOClient:
         matches = self.find_customers_like(builder_name, parent_only=True)
         if matches:
             return matches[0]["Id"]
+        # Fallback case-insensitive: usar primer token como prefijo + filtrar lower()
+        first_token = builder_name.split()[0]
+        if first_token and first_token.lower() != builder_name.lower():
+            broad = self.find_customers_like(first_token, parent_only=True)
+        else:
+            broad = self.find_customers_like(first_token, parent_only=True)
+        target = builder_name.lower()
+        for cand in broad:
+            disp = (cand.get("DisplayName") or "").strip().lower()
+            if disp == target or disp.startswith(target) or target.startswith(disp):
+                _logger.info(
+                    "QBO: parent match case-insensitive — buscado='%s' encontrado='%s' (id=%s)",
+                    builder_name, cand.get("DisplayName"), cand["Id"],
+                )
+                return cand["Id"]
+        _logger.warning(
+            "QBO: no se encontró parent existente para '%s'. Creando nuevo. "
+            "Candidatos con prefijo '%s': %s",
+            builder_name, first_token,
+            [c.get("DisplayName") for c in broad] or "ninguno",
+        )
         result = self.create_customer(builder_name)
         _logger.info("QBO: cliente creado — %s (id=%s)", builder_name, result["Id"])
         return result["Id"]

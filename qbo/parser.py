@@ -2,8 +2,21 @@
 Parser del Jobber Visits Report para generar facturas en QBO.
 """
 import math
+import re
 import pandas as pd
 from datetime import datetime
+
+from config import SHINE_CLIENT_MAP
+
+
+def _normalize_builder(name: str) -> str:
+    if not name:
+        return name
+    n = re.sub(r"\s+", " ", name).strip()
+    for pattern, replacement in SHINE_CLIENT_MAP.items():
+        if re.match(pattern, n, flags=re.IGNORECASE):
+            return replacement
+    return n
 
 
 def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
@@ -90,7 +103,7 @@ def _parse_visit_title(title: str) -> dict | None:
         return None
 
     service_type = parts[-1]
-    builder      = " - ".join(parts[:-1])
+    builder      = _normalize_builder(" - ".join(parts[:-1]))
 
     rest = segments[1:]  # Everything after the first segment
 
