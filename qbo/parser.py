@@ -43,6 +43,19 @@ def _get(row, col: str | None, default=""):
     return val
 
 
+def _split_street(s: str) -> tuple[str, str]:
+    """'256 Macintosh Drive King' → ('256 Macintosh', 'Drive King').
+    Regla: primeros 2 tokens = street, resto = city.
+    """
+    s = (s or "").strip()
+    if not s:
+        return "", ""
+    tokens = s.split()
+    if len(tokens) <= 2:
+        return s, ""
+    return " ".join(tokens[:2]), " ".join(tokens[2:])
+
+
 def _to_amount(val) -> float | None:
     """Convierte cualquier formato razonable de monto a float. None si no parseable."""
     if val is None:
@@ -81,6 +94,10 @@ def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     col_amount = _col_lookup(df, "One-off job ($)", "One-off job", "Amount", "Total")
     col_date   = _col_lookup(df, "Date", "Visit Date", "Scheduled Date")
     col_assign = _col_lookup(df, "Assigned to", "Assigned", "Team")
+    col_street = _col_lookup(df, "Service street", "Property street", "Street")
+    col_city   = _col_lookup(df, "Service city", "Property city", "City")
+    col_state  = _col_lookup(df, "Service province", "Service state", "State", "Province")
+    col_zip    = _col_lookup(df, "Service ZIP", "Service zip", "ZIP", "Postal")
 
     rows: list[dict] = []
     skipped: list[dict] = []
@@ -123,6 +140,15 @@ def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             assigned = str(_get(row, col_assign, "")).strip()
             cleaner  = assigned.split()[0].upper() if assigned else ""
 
+            raw_street = str(_get(row, col_street, "")).strip()
+            raw_city   = str(_get(row, col_city, "")).strip()
+            raw_state  = str(_get(row, col_state, "")).strip()
+            raw_zip    = str(_get(row, col_zip, "")).strip()
+            street, city = _split_street(raw_street)
+            # Si Service city != state (no es duplicado del state), preferir Service city
+            if raw_city and raw_city.upper() != raw_state.upper():
+                city = raw_city
+
             rows.append({
                 "title":        title,
                 "builder":      parsed["builder"],
@@ -133,6 +159,13 @@ def parse_visits_csv(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
                 "amount":       amount,
                 "txn_date":     txn_date,
                 "cleaner":      cleaner,
+                "address": {
+                    "street":  street,
+                    "city":    city,
+                    "state":   raw_state,
+                    "zip":     raw_zip,
+                    "country": "United States" if raw_state else "",
+                },
             })
         except Exception as ex:
             skipped.append({"title": title, "reason": f"error inesperado: {ex}"})

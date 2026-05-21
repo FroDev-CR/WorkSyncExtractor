@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from qbo import storage
 from qbo import oauth as qbo_oauth
 import logger as _log
-from config import SERVICE_ABBREV_MAP
 
 _logger = _log.get(__name__)
 
@@ -124,13 +123,61 @@ class QBOClient:
             results = [r for r in results if not r.get("Job")]
         return results
 
-    def create_customer(self, display_name: str, parent_id: str = "") -> dict:
+    def create_customer(
+        self,
+        display_name: str,
+        parent_id: str = "",
+        company_name: str = "",
+        address: dict | None = None,
+        print_on_check_name: str = "",
+    ) -> dict:
         body: dict = {"DisplayName": display_name}
+        if company_name:
+            body["CompanyName"] = company_name
+        if print_on_check_name:
+            body["PrintOnCheckName"] = print_on_check_name
+        if address and (address.get("street") or address.get("city") or address.get("zip")):
+            bill = {}
+            if address.get("street"):  bill["Line1"]                  = address["street"]
+            if address.get("city"):    bill["City"]                   = address["city"]
+            if address.get("state"):   bill["CountrySubDivisionCode"] = address["state"]
+            if address.get("zip"):     bill["PostalCode"]             = address["zip"]
+            if address.get("country"): bill["Country"]                = address["country"]
+            if bill:
+                body["BillAddr"] = bill
+                body["ShipAddr"] = dict(bill)  # same as billing
         if parent_id:
             body["Job"] = True
             body["ParentRef"] = {"value": parent_id}
             body["BillWithParent"] = True
         return self.create("Customer", body)
+
+    def _get_customer(self, customer_id: str) -> dict:
+        resp = requests.get(
+            self._url(f"customer/{customer_id}"),
+            params={"minorversion": MINOR_VERSION},
+            headers=self._headers(),
+            timeout=30,
+        )
+        if not resp.ok:
+            return {}
+        return resp.json().get("Customer", {})
+
+    @staticmethod
+    def _short_lot(lot: str) -> str:
+        """Acorta lot crudo a parte significativa.
+        Regla: split por grupos de 2+ ceros, devolver último segmento no vacío.
+        Ej: '00100108' → '108', '00100212' → '212', '108' → '108'.
+        """
+        if not lot:
+            return lot
+        import re as _re
+        parts = _re.split(r"0{2,}", str(lot))
+        candidates = [p for p in parts if p]
+        if not candidates:
+            stripped = str(lot).lstrip("0")
+            return stripped or lot
+        return candidates[-1]
 
     def get_or_create_parent_customer(self, builder_name: str) -> str:
         import re
@@ -202,18 +249,29 @@ class QBOClient:
 
     def _find_sub_by_lot(self, subs: list, lot: str) -> str | None:
         """Search sub-customer list locally for one whose DisplayName contains this LOT number."""
+        short = self._short_lot(lot)
         lot_stripped = lot.lstrip("0") or lot
-        candidates = [lot_stripped, lot] if lot_stripped != lot else [lot]
+        candidates = []
+        for c in (short, lot_stripped, lot):
+            if c and c not in candidates:
+                candidates.append(c)
         for sc in subs:
             disp = (sc.get("DisplayName") or "").upper()
             for search_lot in candidates:
-                if search_lot and f"LOT {search_lot}" in disp:
-                    _logger.info("QBO: sub-cliente encontrado por LOT %s → %s", lot, sc.get("DisplayName"))
+                if f"LOT {search_lot}" in disp:
+                    _logger.info("QBO: sub-cliente encontrado por LOT %s → %s", search_lot, sc.get("DisplayName"))
                     return sc["Id"]
         return None
 
-    def get_or_create_sub_customer(self, community_name: str, lot: str, parent_id: str) -> str:
-        sub_name = f"{community_name.upper()} LOT {lot}" if lot else community_name
+    def get_or_create_sub_customer(
+        self,
+        community_name: str,
+        lot: str,
+        parent_id: str,
+        address: dict | None = None,
+    ) -> str:
+        short_lot = self._short_lot(lot) if lot else ""
+        sub_name  = f"{community_name.upper()} LOT {short_lot}" if short_lot else community_name
 
         # 1. Exact match on preferred name
         c = self.find_customer_by_name(sub_name)
@@ -232,16 +290,30 @@ class QBOClient:
         if c:
             return c["Id"]
 
-        # 4. Create new with standard format
-        result = self.create_customer(sub_name, parent_id=parent_id)
+        # 4. Create new — set CompanyName = parent DisplayName + address + print-on-check
+        parent = self._get_customer(parent_id)
+        parent_display = parent.get("DisplayName", "")
+        result = self.create_customer(
+            sub_name,
+            parent_id=parent_id,
+            company_name=parent_display,
+            address=address,
+            print_on_check_name=sub_name,
+        )
         _logger.info("QBO: sub-cliente creado — %s (id=%s)", sub_name, result["Id"])
         return result["Id"]
 
-    def resolve_customer_id(self, builder: str, community: str, lot: str = "") -> str:
+    def resolve_customer_id(
+        self,
+        builder: str,
+        community: str,
+        lot: str = "",
+        address: dict | None = None,
+    ) -> str:
         """Returns the QBO customer ID to use for the invoice."""
         parent_id = self.get_or_create_parent_customer(builder)
         if community:
-            return self.get_or_create_sub_customer(community, lot, parent_id)
+            return self.get_or_create_sub_customer(community, lot, parent_id, address=address)
         return parent_id
 
     # ── Items (Products & Services) ───────────────────────────────────────────
@@ -354,16 +426,10 @@ class QBOClient:
         cf_ids    = self.get_custom_field_ids()
         term_id   = self.get_net15_term_id()
 
-        # Memo: abbreviation + cleaner + order_number + service_type
-        # (e.g. "RRC YADIRA · 39083579-000 · ROUGH CLEAN")
-        abbrev = SERVICE_ABBREV_MAP.get(service_type.upper(), service_type)
-        base   = f"{abbrev} {cleaner}".strip() if cleaner else abbrev
-        parts  = [base]
-        if order_number:
-            parts.append(order_number)
-        if service_type and service_type.upper() != abbrev.upper():
-            parts.append(service_type.upper())
-        memo = " · ".join(parts)
+        # Memo: nombre completo del servicio (title-case) + cleaner.
+        # Ej: "Rough Clean MARIA". Order# va en PONumber/custom field, no en memo.
+        service_pretty = service_type.title() if service_type else ""
+        memo = f"{service_pretty} {cleaner}".strip() if cleaner else service_pretty
 
         # Due date = txn_date + 15 days
         from datetime import date

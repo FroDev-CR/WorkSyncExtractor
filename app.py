@@ -980,7 +980,10 @@ if invoice_rows_pending := st.session_state.pop("trigger_qbo_upload", None):
             cache_key = f"{row['builder']}||{row['community']}||{row.get('lot', '')}"
             if cache_key not in _cust_cache:
                 _cust_cache[cache_key] = qbo.resolve_customer_id(
-                    row["builder"], row["community"], row.get("lot", "")
+                    row["builder"],
+                    row["community"],
+                    row.get("lot", ""),
+                    address=row.get("address"),
                 )
             customer_id = _cust_cache[cache_key]
 
