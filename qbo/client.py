@@ -426,10 +426,11 @@ class QBOClient:
         cf_ids    = self.get_custom_field_ids()
         term_id   = self.get_net15_term_id()
 
-        # Memo: nombre completo del servicio (title-case) + cleaner.
-        # Ej: "Rough Clean MARIA". Order# va en PONumber/custom field, no en memo.
+        # Memo: "{Servicio title-case} {Cleaner} · {OrderNumber}".
+        # Ej: "Rough Clean MARIA · AWK00_005363".
         service_pretty = service_type.title() if service_type else ""
-        memo = f"{service_pretty} {cleaner}".strip() if cleaner else service_pretty
+        base = f"{service_pretty} {cleaner}".strip() if cleaner else service_pretty
+        memo = f"{base} · {order_number}" if order_number else base
 
         # Due date = txn_date + 15 days
         from datetime import date
