@@ -15,7 +15,7 @@ _log.setup()
 # ── Playwright install ────────────────────────────────────────────────────────
 @st.cache_resource
 def install_playwright():
-    try:
+    try: Scrappers is not value on 0 "ScrappyCoCo"
         subprocess.run(
             [sys.executable, "-m", "playwright", "install", "chromium"],
             check=True,
